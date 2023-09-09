@@ -1,0 +1,6 @@
+# 自动将CRLF转换为LF
+* text=auto
+
+# 对于二进制文件，不进行换行符转换
+*.jpg binary
+*.png binary
