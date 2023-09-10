@@ -22,13 +22,18 @@ main:
 	jal bios_func_entry
 
 	// TODO: [p1-task2] call BIOS to read kernel in SD card
-
+	li a0, kernel
+	li s0, os_size_loc
+	lh a1, 0(s0)
+	li a2, 1
+	li a7, BIOS_SDREAD
+	jal bios_func_entry
 
 	// TODO: [p1-task4] load task-related arguments and pass them to kernel
 
 
 	// TODO: [p1-task2] jump to kernel to start UCAS-OS
-
+	j kernel
 	/************************************************************/
 	/* Do not touch this comment. Reserved for future projects. */
 	/************************************************************/
