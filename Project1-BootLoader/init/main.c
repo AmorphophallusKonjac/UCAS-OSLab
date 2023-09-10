@@ -76,19 +76,54 @@ int main(void)
     bios_putstr("Hello OS!\n\r");
     bios_putstr(buf);
 
-    // TODO: [p1-task2]
-    int ch;
-    while ((ch=bios_getchar())) {
-        if (ch != -1) {
-            if (ch == '\r')
-                bios_putstr("\n\r");
-            else 
-                bios_putchar(ch);
-        }
-    }
+    // [p1-task2]: Interactive Character Input-Output System
+    // int ch;
+    // while ((ch=bios_getchar())) {
+    //     if (ch != -1) {
+    //         if (ch == '\r')
+    //             bios_putstr("\n\r");
+    //         else 
+    //             bios_putchar(ch);
+    //     }
+    // }
     // TODO: Load tasks by either task id [p1-task3] or task name [p1-task4],
     //   and then execute them.
-
+    
+    // [p1-task3]: 
+    int ch, taskid, buf_len = 0;
+    while ((ch=bios_getchar())) {
+        if (ch == -1) continue;
+        if (ch == '\r'){
+            bios_putstr("\n\r");
+            taskid = 0; int valid_input = 1;
+            for (int i = 0; i < buf_len; ++i) {
+                if (buf[i] < '0' || buf[i] > '9') {
+                    valid_input = 0;
+                    break;
+                }
+                taskid = taskid * 10 + buf[i] - '0';
+            }
+            if (taskid >= TASK_MAXNUM)
+                valid_input = 0;
+            if (valid_input) {
+                load_task_img(taskid);
+            }
+            else {
+                bios_putstr("Invalid task id\n\r");
+            }
+            buf_len = 0;
+        }
+        else {
+            bios_putchar(ch);
+            if (ch == 8) { // backspace ascii is 8
+                buf_len--;
+                if (buf_len < 0) buf_len = 0;
+            }
+            else 
+                buf[buf_len++] = ch;
+        }
+    }
+    
     // Infinite while loop, where CPU stays in a low-power state (QAQQQQQQQQQQQ)
     while (1)
     {
