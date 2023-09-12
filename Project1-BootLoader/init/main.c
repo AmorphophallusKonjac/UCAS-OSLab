@@ -91,6 +91,7 @@ int main(void)
     
     // [p1-task3]: 
     int ch, taskid, buf_len = 0;
+    bios_putstr("$ ");
     while ((ch=bios_getchar())) {
         if (ch == -1) continue;
         if (ch == '\r'){
@@ -106,21 +107,17 @@ int main(void)
             if (taskid >= TASK_MAXNUM)
                 valid_input = 0;
             if (valid_input) {
-                load_task_img(taskid);
+                ((void (*)())load_task_img(taskid))();
             }
             else {
                 bios_putstr("Invalid task id\n\r");
             }
             buf_len = 0;
+            bios_putstr("$ ");
         }
         else {
             bios_putchar(ch);
-            if (ch == 8) { // backspace ascii is 8
-                buf_len--;
-                if (buf_len < 0) buf_len = 0;
-            }
-            else 
-                buf[buf_len++] = ch;
+            buf[buf_len++] = ch;
         }
     }
     
