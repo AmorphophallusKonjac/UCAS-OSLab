@@ -14,6 +14,9 @@ char buf[VERSION_BUF];
 // Task info array
 task_info_t tasks[TASK_MAXNUM];
 
+// [p1-Task3] Task num
+uint16_t task_num = 4;
+
 static int bss_check(void)
 {
     for (int i = 0; i < VERSION_BUF; ++i)
@@ -104,7 +107,7 @@ int main(void)
                 }
                 taskid = taskid * 10 + buf[i] - '0';
             }
-            if (taskid >= TASK_MAXNUM)
+            if (taskid >= task_num)
                 valid_input = 0;
             if (valid_input) {
                 ((void (*)())load_task_img(taskid))();
