@@ -7,6 +7,7 @@
 #include <type.h>
 
 #define VERSION_BUF 50
+#define OS_SIZE_LOC 0x502001fc
 
 int version = 2; // version must between 0 and 9
 char buf[VERSION_BUF];
@@ -15,7 +16,7 @@ char buf[VERSION_BUF];
 task_info_t tasks[TASK_MAXNUM];
 
 // [p1-Task3] Task num
-uint16_t task_num = 4;
+uint16_t task_num;
 
 static int bss_check(void)
 {
@@ -43,6 +44,11 @@ static void init_task_info(void)
 {
     // TODO: [p1-task4] Init 'tasks' array via reading app-info sector
     // NOTE: You need to get some related arguments from bootblock first
+    uint64_t taskinfo_size = *(uint32_t *)(OS_SIZE_LOC - 0x8);
+    uint64_t taskinfo_offset = *(uint32_t *)(OS_SIZE_LOC - 0xC);
+    taskinfo_offset = taskinfo_offset % (uint64_t)(0x200);
+    task_num = *(uint16_t *)(OS_SIZE_LOC + 0x2);
+    memcpy((uint8_t *)tasks, (uint8_t *)(0x52000000 + taskinfo_offset), taskinfo_size);
 }
 
 /************************************************************/
@@ -93,29 +99,50 @@ int main(void)
     //   and then execute them.
     
     // [p1-task3]: 
-    int ch, taskid, buf_len = 0;
+    // int ch, taskid, buf_len = 0;
+    // bios_putstr("$ ");
+    // while ((ch=bios_getchar())) {
+    //     if (ch == -1) continue;
+    //     if (ch == '\r'){
+    //         bios_putstr("\n\r");
+    //         taskid = 0; int valid_input = 1;
+    //         for (int i = 0; i < buf_len; ++i) {
+    //             if (buf[i] < '0' || buf[i] > '9') {
+    //                 valid_input = 0;
+    //                 break;
+    //             }
+    //             taskid = taskid * 10 + buf[i] - '0';
+    //         }
+    //         if (taskid >= task_num)
+    //             valid_input = 0;
+    //         if (valid_input) {
+    //             ((void (*)())load_task_img(taskid))();
+    //         }
+    //         else {
+    //             bios_putstr("Invalid task id\n\r");
+    //         }
+    //         buf_len = 0;
+    //         bios_putstr("$ ");
+    //     }
+    //     else {
+    //         bios_putchar(ch);
+    //         buf[buf_len++] = ch;
+    //     }
+    // }
+
+    // [p1-task4]:
+    int ch, buf_len = 0;
+    memset(buf, 0, sizeof(buf));
     bios_putstr("$ ");
     while ((ch=bios_getchar())) {
         if (ch == -1) continue;
-        if (ch == '\r'){
+        if (ch == '\r') {
             bios_putstr("\n\r");
-            taskid = 0; int valid_input = 1;
-            for (int i = 0; i < buf_len; ++i) {
-                if (buf[i] < '0' || buf[i] > '9') {
-                    valid_input = 0;
-                    break;
-                }
-                taskid = taskid * 10 + buf[i] - '0';
+            int valid_input = from_name_load_task_img(buf);
+            memset(buf, 0, sizeof(buf)); buf_len = 0;
+            if (!valid_input) {
+                bios_putstr("Invalid task name\n\r");
             }
-            if (taskid >= task_num)
-                valid_input = 0;
-            if (valid_input) {
-                ((void (*)())load_task_img(taskid))();
-            }
-            else {
-                bios_putstr("Invalid task id\n\r");
-            }
-            buf_len = 0;
             bios_putstr("$ ");
         }
         else {
