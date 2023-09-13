@@ -102,6 +102,19 @@ static void create_image(int nfiles, char *files[])
         fp = fopen(*files, "r");
         assert(fp != NULL);
 
+        if (strcmp(*files, "main") == 0) {
+            fseek(fp, 0, SEEK_END);
+            nbytes_kernel = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            for (int i = 0; i < nbytes_kernel; ++i) {
+                phyaddr++;
+                fputc(fgetc(fp), img);
+            }
+            fclose(fp);
+            files++;
+            continue;
+        }
+
         /* read ELF header */
         read_ehdr(&ehdr, fp);
         printf("0x%04lx: %s\n", ehdr.e_entry, *files);
@@ -254,7 +267,8 @@ static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
     uint32_t taskinfo_size = sizeof(task_info_t) * tasknum;
     uint16_t taskinfo_sector_id = taskinfo_offset / SECTOR_SIZE;
     uint16_t taskinfo_sector_num = (taskinfo_offset + taskinfo_size) / SECTOR_SIZE - taskinfo_sector_id + 1;
-    fseek(img, OS_SIZE_LOC - 12, SEEK_SET);
+    fseek(img, OS_SIZE_LOC - 16, SEEK_SET);
+    fwrite(&nbytes_kernel, sizeof(int), 1, img);
     fwrite(&taskinfo_offset, sizeof(uint32_t), 1, img);
     fwrite(&taskinfo_size, sizeof(uint32_t), 1, img);
     fwrite(&taskinfo_sector_id, sizeof(uint16_t), 1, img);
