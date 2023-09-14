@@ -108,9 +108,11 @@ DEFLATE_CFLAGS_COMMON  = -O2 $(DEFLATE_INCLUDE_COMMON) -Wall -DFREESTANDING
 
 DEFLATE_CFLAGS_DEPRESS = $(CFLAGS) -DFREESTANDING $(DEFLATE_INCLUDE_COMMON) -I./arch/riscv/include
 
+SRC_COMPRESS 		= ./tools/compress.c
 SRC_DECOMPRESS  	= ./tools/decompress.c
 DEFLATE_SRC_LIB     = $(DEFLATE_LIB_DIR)/*.c
 DEFLATE_SRC_COMMON  = $(DEFLATE_DIR)/*.c
+ELF_COMPRESS	= $(DIR_BUILD)/compress
 ELF_DECOMPRESS	= $(DIR_BUILD)/decompress
 
 # -----------------------------------------------------------------------
@@ -174,10 +176,13 @@ elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER) $(ELF_DECOMPRESS)
 # Host Linux Rules
 # -----------------------------------------------------------------------
 
-$(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE)
+$(ELF_COMPRESS): $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
+	$(HOST_CC) $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_COMMON) -g -o $@ 
+
+$(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
 	$(HOST_CC) $(SRC_CREATEIMAGE) -o $@ -ggdb -Wall
 
-image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_MAIN) $(ELF_DECOMPRESS) $(ELF_USER)
-	cd $(DIR_BUILD) && ./$(<F) --extended $(filter-out $(<F), $(^F))
+image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_MAIN) $(ELF_DECOMPRESS) $(ELF_USER) $(ELF_COMPRESS)
+	cd $(DIR_BUILD) &&./compress  &&./$(<F) --extended $(filter-out $(<F) compress, $(^F))
 
 .PHONY: image

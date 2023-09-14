@@ -11,8 +11,8 @@ kernel2main:compress main
 #include <assert.h>
 
 
-#define MAIN "./main"
-#define KERNEL "./kernel"
+#define MAIN "main"
+#define KERNEL "kernel"
 
 static void read_ehdr(Elf64_Ehdr *ehdr, FILE *fp);
 static void read_phdr(Elf64_Phdr *phdr, FILE *fp, int ph, Elf64_Ehdr ehdr);
@@ -28,11 +28,11 @@ int main() {
 
     // ==== main2kernel ====
     /* open the main */
-    cfp = fopen(MAIN, "r");
+    cfp = fopen(MAIN, "rb");
     assert(cfp != NULL);
 
     /* open the kernel */
-    fp = fopen(KERNEL, "w");
+    fp = fopen(KERNEL, "wb");
     assert(fp != NULL);
 
     read_ehdr(&ehdr, cfp);
@@ -66,7 +66,7 @@ int main() {
     /* read kernel to data */
     char *data = (char *)malloc(nbytes_kernel);
     memset(data, 0, nbytes_kernel);
-    size_t bytes_read = fread(data, nbytes_kernel, 1, fp);
+    size_t bytes_read = fread(data, 1, nbytes_kernel, fp);
     if (bytes_read != nbytes_kernel) {
         printf("read fail!!!!!\n");
     }
@@ -82,7 +82,7 @@ int main() {
     int out_nbytes = deflate_deflate_compress(compressor, data, nbytes_kernel, compressed, nbytes_kernel + 10);
     
     /* write back to main*/
-    size_t bytes_write = fwrite(compressed, out_nbytes, 1, cfp);
+    size_t bytes_write = fwrite(compressed, 1, out_nbytes, cfp);
     if (bytes_write != out_nbytes) {
         printf("write fail!!!");
     }
