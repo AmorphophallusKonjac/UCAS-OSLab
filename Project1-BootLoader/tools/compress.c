@@ -86,6 +86,7 @@ int main() {
     if (bytes_write != out_nbytes) {
         printf("write fail!!!");
     }
+    fclose(cfp);
     free(data);
     free(compressed);
     return 0;
