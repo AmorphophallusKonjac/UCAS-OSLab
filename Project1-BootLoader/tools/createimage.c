@@ -45,7 +45,7 @@ static uint32_t get_memsz(Elf64_Phdr phdr);
 static void write_segment(Elf64_Phdr phdr, FILE *fp, FILE *img, int *phyaddr);
 static void write_padding(FILE *img, int *phyaddr, int new_phyaddr);
 static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
-                           short tasknum, FILE *img);
+                           short tasknum, FILE *img, int decompress_offset, int decompress_size);
 
 int main(int argc, char **argv)
 {
@@ -82,9 +82,11 @@ int main(int argc, char **argv)
 /* TODO: [p1-task4] assign your task_info_t somewhere in 'create_image' */
 static void create_image(int nfiles, char *files[])
 {
-    int tasknum = nfiles - 2;
+    int tasknum = nfiles - 3;
     int nbytes_kernel = 0;
     int phyaddr = 0;
+    int decompress_offset = 0;
+    int decompress_size = 0;
     FILE *fp = NULL, *img = NULL;
     Elf64_Ehdr ehdr;
     Elf64_Phdr phdr;
@@ -96,7 +98,7 @@ static void create_image(int nfiles, char *files[])
     /* for each input file */
     for (int fidx = 0; fidx < nfiles; ++fidx) {
 
-        int taskidx = fidx - 2;
+        int taskidx = fidx - 3;
 
         /* open input file */
         fp = fopen(*files, "r");
@@ -125,6 +127,11 @@ static void create_image(int nfiles, char *files[])
             strcpy(taskinfo[taskidx].name, *files);
             taskinfo[taskidx].entrypoint = get_entrypoint(ehdr);
         }
+        
+        // [p1-task5] create decompress offset
+        if (strcmp(*files, "decompress") == 0) {
+            decompress_offset = phyaddr;
+        }
 
         /* for each program header */
         for (int ph = 0; ph < ehdr.e_phnum; ph++) {
@@ -146,6 +153,11 @@ static void create_image(int nfiles, char *files[])
         // [p1-task4] create app info:size
         if (taskidx >= 0) {
             taskinfo[taskidx].size = phyaddr - taskinfo[taskidx].offset;
+        }
+
+        // [p1-task5] create decompress size
+        if (strcmp(*files, "decompress") == 0) {
+            decompress_size = phyaddr - decompress_offset;
         }
 
         /* write padding bytes */
@@ -172,7 +184,7 @@ static void create_image(int nfiles, char *files[])
         fclose(fp);
         files++;
     }
-    write_img_info(nbytes_kernel, taskinfo, tasknum, img);
+    write_img_info(nbytes_kernel, taskinfo, tasknum, img, decompress_offset, decompress_size);
 
     fclose(img);
 }
@@ -249,7 +261,7 @@ static void write_padding(FILE *img, int *phyaddr, int new_phyaddr)
 }
 
 static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
-                           short tasknum, FILE * img)
+                           short tasknum, FILE * img, int decompress_offset, int decompress_size)
 {
     // TODO: [p1-task3] & [p1-task4] write image info to some certain places
     // NOTE: os size, infomation about app-info sector(s) ...
@@ -267,12 +279,19 @@ static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
     uint32_t taskinfo_size = sizeof(task_info_t) * tasknum;
     uint16_t taskinfo_sector_id = taskinfo_offset / SECTOR_SIZE;
     uint16_t taskinfo_sector_num = (taskinfo_offset + taskinfo_size) / SECTOR_SIZE - taskinfo_sector_id + 1;
-    fseek(img, OS_SIZE_LOC - 16, SEEK_SET);
-    fwrite(&nbytes_kernel, sizeof(int), 1, img);
+    fseek(img, OS_SIZE_LOC - 12, SEEK_SET);
     fwrite(&taskinfo_offset, sizeof(uint32_t), 1, img);
     fwrite(&taskinfo_size, sizeof(uint32_t), 1, img);
     fwrite(&taskinfo_sector_id, sizeof(uint16_t), 1, img);
     fwrite(&taskinfo_sector_num, sizeof(uint16_t), 1, img);
+    
+    // [p1-task5]: calc decompress sector num and sector id, write nbytes kernel and decompress sector message
+    uint16_t decompress_sector_id = decompress_offset / SECTOR_SIZE;
+    uint16_t decompress_sector_num = (decompress_offset + decompress_size) / SECTOR_SIZE - decompress_sector_id + 1;
+    fseek(img, OS_SIZE_LOC - 12 - 8, SEEK_SET);
+    fwrite(&nbytes_kernel, sizeof(int), 1, img);
+    fwrite(&decompress_sector_id, sizeof(uint16_t), 1, img);
+    fwrite(&decompress_sector_num, sizeof(uint16_t), 1, img);
 }
 
 /* print an error message and exit */

@@ -100,6 +100,19 @@ ELF_USER    = $(patsubst %.c, %, $(foreach file, $(SRC_USER), $(DIR_BUILD)/$(not
 SRC_CREATEIMAGE = ./tools/createimage.c
 ELF_CREATEIMAGE = $(DIR_BUILD)/$(notdir $(SRC_CREATEIMAGE:.c=))
 
+DEFLATE_DIR		= ./tools/deflate
+DEFLATE_LIB_DIR = $(DEFLATE_DIR)/lib
+
+DEFLATE_INCLUDE_COMMON = -I$(DEFLATE_LIB_DIR) -I$(DEFLATE_DIR)
+DEFLATE_CFLAGS_COMMON  = -O2 $(DEFLATE_INCLUDE_COMMON) -Wall -DFREESTANDING
+
+DEFLATE_CFLAGS_DEPRESS = $(CFLAGS) -DFREESTANDING $(DEFLATE_INCLUDE_COMMON) -I./arch/riscv/include
+
+SRC_DECOMPRESS  	= ./tools/decompress.c
+DEFLATE_SRC_LIB     = $(DEFLATE_LIB_DIR)/*.c
+DEFLATE_SRC_COMMON  = $(DEFLATE_DIR)/*.c
+ELF_DECOMPRESS	= $(DIR_BUILD)/decompress
+
 # -----------------------------------------------------------------------
 # Top-level Rules
 # -----------------------------------------------------------------------
@@ -143,6 +156,9 @@ $(ELF_BOOT): $(SRC_BOOT) riscv.lds
 $(ELF_MAIN): $(SRC_MAIN) riscv.lds
 	$(CC) $(KERNEL_CFLAGS) -o $@ $(SRC_MAIN)
 
+$(ELF_DECOMPRESS): $(SRC_DECOMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
+	$(CC) $(SRC_DECOMPRESS) $(SRC_ARCH) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_DEPRESS) -g -o $@ -Wl,--defsym=TEXT_START=0x54000000 -T riscv.lds
+
 $(OBJ_CRT0): $(SRC_CRT0)
 	$(CC) $(USER_CFLAGS) -I$(DIR_ARCH)/include -c $< -o $@
 
@@ -150,7 +166,7 @@ $(DIR_BUILD)/%: $(DIR_TEST_PROJ)/%.c $(OBJ_CRT0) riscv.lds
 	$(CC) $(USER_CFLAGS) -o $@ $(OBJ_CRT0) $< -Wl,--defsym=TEXT_START=$(USER_ENTRYPOINT) -T riscv.lds
 	$(eval USER_ENTRYPOINT := $(shell python3 -c "print(hex(int('$(USER_ENTRYPOINT)', 16) + int('0x10000', 16)))"))
 
-elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
+elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER) $(ELF_DECOMPRESS)
 
 .PHONY: elf
 
@@ -161,7 +177,7 @@ elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
 $(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE)
 	$(HOST_CC) $(SRC_CREATEIMAGE) -o $@ -ggdb -Wall
 
-image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
+image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_MAIN) $(ELF_DECOMPRESS) $(ELF_USER)
 	cd $(DIR_BUILD) && ./$(<F) --extended $(filter-out $(<F), $(^F))
 
 .PHONY: image
