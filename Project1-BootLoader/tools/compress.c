@@ -75,6 +75,7 @@ int main() {
     /* prepare environment */ 
     deflate_set_memory_allocator((void * (*)(int))malloc, free);
     struct libdeflate_compressor * compressor = deflate_alloc_compressor(1);
+    struct libdeflate_decompressor * decompressor = deflate_alloc_decompressor();
     char *compressed = (char *)malloc(nbytes_kernel + 10);
     memset(compressed, 0, nbytes_kernel + 10);
 
@@ -87,6 +88,18 @@ int main() {
         printf("write fail!!!");
     }
     fclose(cfp);
+
+    char *extracted = (char *)malloc(1000000);
+    // do decompress
+    int restore_nbytes = 0;
+    deflate_deflate_decompress(decompressor, compressed, out_nbytes, extracted, 1000000, &restore_nbytes);
+
+    fp = fopen("demain", "wb");
+
+    fwrite(extracted, 1, restore_nbytes, fp);
+
+    fclose(fp);
+
     free(data);
     free(compressed);
     return 0;
