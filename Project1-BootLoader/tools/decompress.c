@@ -1,7 +1,7 @@
 #include "deflate/tinylibdeflate.h"
 
 
-#define COM_KERNEL_LOC 0x52000000
+#define DECOM_KERNEL_LOC 0x52000000
 #define KERNEL 0x50201000
 #define OS_SIZE_LOC 0x502001fc
 #define BUF_LEN 0x51ffffff - 0x50200000
@@ -11,9 +11,10 @@ int main(){
     // prepare environment
     struct libdeflate_decompressor * decompressor = deflate_alloc_decompressor();
 
-    char *compressed = (char *)(COM_KERNEL_LOC);
+    int nbytes_compress = *(int *)(OS_SIZE_LOC - 20);
+    int nbytes_kernel = *(int *)(OS_SIZE_LOC - 16);
+    char *compressed = (char *)(DECOM_KERNEL_LOC + nbytes_compress);
     char *extracted = (char *)(KERNEL);
-    int nbytes_kernel = *(int *)(OS_SIZE_LOC - 0x10);
 
     // do decompress
     int restore_nbytes = 0;

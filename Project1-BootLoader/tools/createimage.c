@@ -44,8 +44,8 @@ static uint32_t get_filesz(Elf64_Phdr phdr);
 static uint32_t get_memsz(Elf64_Phdr phdr);
 static void write_segment(Elf64_Phdr phdr, FILE *fp, FILE *img, int *phyaddr);
 static void write_padding(FILE *img, int *phyaddr, int new_phyaddr);
-static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
-                           short tasknum, FILE *img, int decompress_offset, int decompress_size);
+static void write_img_info(int nbytes_kernel, int nbytes_decompress, task_info_t *taskinfo,
+                           short tasknum, FILE *img);
 
 int main(int argc, char **argv)
 {
@@ -85,8 +85,7 @@ static void create_image(int nfiles, char *files[])
     int tasknum = nfiles - 3;
     int nbytes_kernel = 0;
     int phyaddr = 0;
-    int decompress_offset = 0;
-    int decompress_size = 0;
+    int nbytes_decompress = 0;
     FILE *fp = NULL, *img = NULL;
     Elf64_Ehdr ehdr;
     Elf64_Phdr phdr;
@@ -128,10 +127,6 @@ static void create_image(int nfiles, char *files[])
             taskinfo[taskidx].entrypoint = get_entrypoint(ehdr);
         }
         
-        // [p1-task5] create decompress offset
-        if (strcmp(*files, "decompress") == 0) {
-            decompress_offset = phyaddr;
-        }
 
         /* for each program header */
         for (int ph = 0; ph < ehdr.e_phnum; ph++) {
@@ -144,20 +139,15 @@ static void create_image(int nfiles, char *files[])
             /* write segment to the image */
             write_segment(phdr, fp, img, &phyaddr);
 
-            /* update nbytes_kernel */
-            if (strcmp(*files, "main") == 0) {
-                nbytes_kernel += get_filesz(phdr);
+            /* update nbytes_decompress */
+            if (strcmp(*files, "decompress") == 0) {
+                nbytes_decompress += get_filesz(phdr);
             }
         }
 
         // [p1-task4] create app info:size
         if (taskidx >= 0) {
             taskinfo[taskidx].size = phyaddr - taskinfo[taskidx].offset;
-        }
-
-        // [p1-task5] create decompress size
-        if (strcmp(*files, "decompress") == 0) {
-            decompress_size = phyaddr - decompress_offset;
         }
 
         /* write padding bytes */
@@ -184,7 +174,7 @@ static void create_image(int nfiles, char *files[])
         fclose(fp);
         files++;
     }
-    write_img_info(nbytes_kernel, taskinfo, tasknum, img, decompress_offset, decompress_size);
+    write_img_info(nbytes_kernel, nbytes_decompress, taskinfo, tasknum, img);
 
     fclose(img);
 }
@@ -260,8 +250,8 @@ static void write_padding(FILE *img, int *phyaddr, int new_phyaddr)
     }
 }
 
-static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
-                           short tasknum, FILE * img, int decompress_offset, int decompress_size)
+static void write_img_info(int nbytes_kernel, int nbytes_decompress, task_info_t *taskinfo,
+                           short tasknum, FILE * img)
 {
     // TODO: [p1-task3] & [p1-task4] write image info to some certain places
     // NOTE: os size, infomation about app-info sector(s) ...
@@ -269,7 +259,7 @@ static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
     fwrite(taskinfo, sizeof(task_info_t), tasknum, img);
 
     // [p1-task3]: calc kernel sector num and task num, save it in OS_SIZE_LOC
-    uint16_t kernel_sector_num = NBYTES2SEC(nbytes_kernel);
+    uint16_t kernel_sector_num = NBYTES2SEC(nbytes_kernel + nbytes_decompress);
     fseek(img, OS_SIZE_LOC, SEEK_SET);
     fwrite(&kernel_sector_num, sizeof(uint16_t), 1, img);
     fwrite(&tasknum, sizeof(short), 1, img);
@@ -285,13 +275,10 @@ static void write_img_info(int nbytes_kernel, task_info_t *taskinfo,
     fwrite(&taskinfo_sector_id, sizeof(uint16_t), 1, img);
     fwrite(&taskinfo_sector_num, sizeof(uint16_t), 1, img);
     
-    // [p1-task5]: calc decompress sector num and sector id, write nbytes kernel and decompress sector message
-    uint16_t decompress_sector_id = decompress_offset / SECTOR_SIZE;
-    uint16_t decompress_sector_num = (decompress_offset + decompress_size) / SECTOR_SIZE - decompress_sector_id + 1;
+    // [p1-task5]: save nbytes_decompress, nbytes_kernel
     fseek(img, OS_SIZE_LOC - 12 - 8, SEEK_SET);
+    fwrite(&nbytes_decompress, sizeof(int), 1, img);
     fwrite(&nbytes_kernel, sizeof(int), 1, img);
-    fwrite(&decompress_sector_id, sizeof(uint16_t), 1, img);
-    fwrite(&decompress_sector_num, sizeof(uint16_t), 1, img);
 }
 
 /* print an error message and exit */
