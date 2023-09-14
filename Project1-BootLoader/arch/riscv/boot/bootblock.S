@@ -28,7 +28,7 @@ main:
 	li a7, BIOS_PUTSTR
 	jal bios_func_entry
 
-	// TODO: [p1-task2] call BIOS to read kernel in SD card
+	// TODO: [p1-task2] call BIOS to read decompress in SD card
 	li a0, decompress
 	li s0, os_size_loc
 	lh a1, 0(s0)
@@ -36,6 +36,7 @@ main:
 	li a7, BIOS_SDREAD
 	jal bios_func_entry
 
+	// [p1-task5] call BIOS to read compressed_kernel in SD card
 	li a0, compressed_kernel
 	li s0, os_size_loc
 	lh a1, -22(s0)
