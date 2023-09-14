@@ -26,13 +26,18 @@ bss_clear:
     blt s0, s1, bss_clear
 bss_clear_done:
 
-    /* TODO: [p1-task5] setup C environment */
-    li sp, KERNEL_STACK
+    // store ra
+    addi sp, sp, -8
+    sd ra, 0(sp)
 
-    /* TODO: [p1-task5] enter main function */
-    call main
+    /* [p1-task5] enter main function */
+    jal main
 
-    /* TODO: [p1-task5] return to bootblock */
+    // load ra
+    ld ra, 0(sp)
+    addi sp, sp, 8
+
+    /* [p1-task5] return to bootblock */
     ret
 
 

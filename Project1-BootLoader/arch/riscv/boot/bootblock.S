@@ -1,5 +1,7 @@
 #include <asm/biosdef.h>
 
+#define KERNEL_STACK		0x50500000
+
 // os size location (os_size could be sectors [p1-task3] or bytes [p1-task4])
 .equ os_size_loc, 0x502001fc
 
@@ -32,8 +34,12 @@ main:
 	li a7, BIOS_SDREAD
 	jal bios_func_entry
 
+	// [p1-task5] set stackpoint
+	li sp, KERNEL_STACK
+
 	// [p1-task5] call decompress 
 	call decompress
+
 
 	// TODO: [p1-task4] load task-related arguments and pass them to kernel
 	li a0, 0x52000000
