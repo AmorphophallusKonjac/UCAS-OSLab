@@ -258,10 +258,10 @@ static void write_img_info(int nbytes_kernel, int nbytes_decompress, task_info_t
     // [p1-task4] write app info
     fwrite(taskinfo, sizeof(task_info_t), tasknum, img);
 
-    // [p1-task3]: calc kernel sector num and task num, save it in OS_SIZE_LOC
-    uint16_t kernel_sector_num = NBYTES2SEC(nbytes_kernel + nbytes_decompress);
+    // [p1-task5]: calc decompress sector num and task num, save it in OS_SIZE_LOC
+    uint16_t decompress_sector_num = NBYTES2SEC(nbytes_decompress);
     fseek(img, OS_SIZE_LOC, SEEK_SET);
-    fwrite(&kernel_sector_num, sizeof(uint16_t), 1, img);
+    fwrite(&decompress_sector_num, sizeof(uint16_t), 1, img);
     fwrite(&tasknum, sizeof(short), 1, img);
 
     // [p1-task4]: calc taskinfo sector num and sector id and taskinfo offset and taskinfo size
@@ -279,6 +279,15 @@ static void write_img_info(int nbytes_kernel, int nbytes_decompress, task_info_t
     fseek(img, OS_SIZE_LOC - 12 - 8, SEEK_SET);
     fwrite(&nbytes_decompress, sizeof(int), 1, img);
     fwrite(&nbytes_kernel, sizeof(int), 1, img);
+
+    // [p1-task5]: calc kernel_offset and kernel_sector_id and kernel_sector_num
+    uint32_t kernel_offset = SECTOR_SIZE + nbytes_decompress;
+    uint16_t kernel_sector_id = kernel_offset / SECTOR_SIZE;
+    uint16_t kernel_sector_num = (kernel_offset + nbytes_kernel) / SECTOR_SIZE - kernel_sector_id + 1;
+    fseek(img, OS_SIZE_LOC - 12 - 8 - 8, SEEK_SET);
+    fwrite(&kernel_offset, sizeof(uint32_t), 1, img);
+    fwrite(&kernel_sector_id, sizeof(uint16_t), 1, img);
+    fwrite(&kernel_sector_num, sizeof(uint16_t), 1, img);
 }
 
 /* print an error message and exit */

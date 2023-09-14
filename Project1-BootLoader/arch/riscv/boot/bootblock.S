@@ -14,6 +14,8 @@
 // [p1-task5] depress function entry (jump here to depress kernel)
 .equ decompress, 0x52000000
 
+.equ compressed_kernel, 0x54000000
+
 .text
 .global main
 
@@ -32,6 +34,12 @@ main:
 	lh a1, 0(s0)
 	li a2, 1
 	li a7, BIOS_SDREAD
+	jal bios_func_entry
+
+	li a0, compressed_kernel
+	li s0, os_size_loc
+	lh a1, -22(s0)
+	lh a2, -24(s0)
 	jal bios_func_entry
 
 	// [p1-task5] set stackpoint
