@@ -9,6 +9,9 @@
 // BIOS function entry (jump here to use BIOS APIs)
 .equ bios_func_entry, 0x50150000
 
+// [p1-task5] depress function entry (jump here to depress kernel)
+.equ decompress, 0x52000000
+
 .text
 .global main
 
@@ -22,12 +25,15 @@ main:
 	jal bios_func_entry
 
 	// TODO: [p1-task2] call BIOS to read kernel in SD card
-	li a0, kernel
+	li a0, com_kernel
 	li s0, os_size_loc
 	lh a1, 0(s0)
 	li a2, 1
 	li a7, BIOS_SDREAD
 	jal bios_func_entry
+
+	// [p1-task5] call decompress 
+	call decompress
 
 	// TODO: [p1-task4] load task-related arguments and pass them to kernel
 	li a0, 0x52000000

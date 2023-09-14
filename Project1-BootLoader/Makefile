@@ -88,6 +88,7 @@ ELF_IMAGE   = $(DIR_BUILD)/image
 # -----------------------------------------------------------------------
 
 SRC_CRT0    = $(wildcard $(DIR_ARCH)/crt0/*.S)
+DEFLATE_SRC_CRT0 = $(wildcard $(DIR_ARCH)/decompress-crt0/*.S)
 OBJ_CRT0    = $(DIR_BUILD)/$(notdir $(SRC_CRT0:.S=.o))
 
 SRC_USER    = $(wildcard $(DIR_TEST_PROJ)/*.c)
@@ -159,7 +160,7 @@ $(ELF_MAIN): $(SRC_MAIN) riscv.lds
 	$(CC) $(KERNEL_CFLAGS) -o $@ $(SRC_MAIN)
 
 $(ELF_DECOMPRESS): $(SRC_DECOMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
-	$(CC) $(SRC_DECOMPRESS) $(SRC_ARCH) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_DEPRESS) -g -o $@ -Wl,--defsym=TEXT_START=0x52000000 -T riscv.lds
+	$(CC) $(SRC_DECOMPRESS) $(DEFLATE_SRC_CRT0) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_DEPRESS) -g -o $@ -Wl,--defsym=TEXT_START=0x52000000 -T riscv.lds
 
 $(OBJ_CRT0): $(SRC_CRT0)
 	$(CC) $(USER_CFLAGS) -I$(DIR_ARCH)/include -c $< -o $@
