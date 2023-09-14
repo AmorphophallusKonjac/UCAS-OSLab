@@ -25,7 +25,7 @@ main:
 	jal bios_func_entry
 
 	// TODO: [p1-task2] call BIOS to read kernel in SD card
-	li a0, com_kernel
+	li a0, decompress
 	li s0, os_size_loc
 	lh a1, 0(s0)
 	li a2, 1
