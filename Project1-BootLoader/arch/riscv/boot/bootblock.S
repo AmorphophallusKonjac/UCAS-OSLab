@@ -44,7 +44,7 @@ main:
 	jal bios_func_entry
 
 	// [p1-task5] set stackpoint
-	li sp, KERNEL_STACK
+	# li sp, KERNEL_STACK
 
 	// [p1-task5] call decompress 
 	call decompress

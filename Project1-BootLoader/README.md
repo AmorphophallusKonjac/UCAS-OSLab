@@ -54,6 +54,8 @@ $
 - 清空bss段
 - 设置内核栈指针
 
+### 内核
+
 ```init/main.c```完成下述操作：
 
 - 检验bss段已清空
@@ -67,7 +69,7 @@ $
 
 ```h
 uint64_t load_task_img(int taskid);
-void excute_task_img_via_name(char *taskname);
+void from_name_load_task_img(char *taskname);
 ```
 
 其中，
@@ -76,7 +78,7 @@ void excute_task_img_via_name(char *taskname);
 
 ```from_name_load_task_img```将在```task-info```信息中逐个比对输入的task名。若输入的任务存在，则调用```load_task_img```函数执行该任务；否则，反馈失败信息给```init/main.c```。
 
-### 测试程序入口
+### 测试程序与解压程序入口
 
 ```crt0.S```完成下述操作：
 
@@ -122,7 +124,6 @@ typedef struct {
 
 extern task_info_t tasks[TASK_MAXNUM];
 
-// for [p1-task4]
 extern uint16_t task_num;
 ```
 
