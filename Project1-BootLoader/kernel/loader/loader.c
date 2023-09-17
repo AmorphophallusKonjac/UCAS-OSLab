@@ -3,8 +3,7 @@
 #include <os/kernel.h>
 #include <type.h>
 
-uint64_t load_task_img(int taskid)
-{
+uint64_t load_task_img(int taskid) {
     /**
      * TODO:
      * 1. [p1-task3] load task from image via task id, and return its entrypoint
@@ -22,7 +21,7 @@ uint64_t load_task_img(int taskid)
     return tasks[taskid].entrypoint;
 }
 
-int from_name_load_task_img(char* name) {
+int from_name_load_task_img(char *name) {
     for (int taskidx = 0; taskidx < task_num; ++taskidx) {
         if (strcmp(tasks[taskidx].name, name) == 0) {
             ((void (*)())load_task_img(taskidx))();
@@ -31,4 +30,3 @@ int from_name_load_task_img(char* name) {
     }
     return 0;
 }
-

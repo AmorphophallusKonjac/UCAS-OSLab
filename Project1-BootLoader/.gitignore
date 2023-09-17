@@ -3,3 +3,4 @@ build
 *.txt
 .clangd
 test-decompress
+.clang-format
