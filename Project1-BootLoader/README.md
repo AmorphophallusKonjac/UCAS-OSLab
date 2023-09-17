@@ -164,8 +164,6 @@ Project1-BootLoader
 │       │   └── bootblock.S
 │       ├── crt0
 │       │   └── crt0.S
-│       ├── decompress-crt0
-│       │   └── decompress-crt0.S
 │       ├── include
 │       │   ├── asm
 │       │   │   └── biosdef.h
