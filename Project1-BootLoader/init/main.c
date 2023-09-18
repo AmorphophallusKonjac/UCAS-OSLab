@@ -18,30 +18,25 @@ task_info_t tasks[TASK_MAXNUM];
 // [p1-Task3] Task num
 uint16_t task_num;
 
-static int bss_check(void)
-{
-    for (int i = 0; i < VERSION_BUF; ++i)
-    {
-        if (buf[i] != 0)
-        {
+static int bss_check(void) {
+    for (int i = 0; i < VERSION_BUF; ++i) {
+        if (buf[i] != 0) {
             return 0;
         }
     }
     return 1;
 }
 
-static void init_jmptab(void)
-{
+static void init_jmptab(void) {
     volatile long (*(*jmptab))() = (volatile long (*(*))())KERNEL_JMPTAB_BASE;
 
-    jmptab[CONSOLE_PUTSTR]  = (long (*)())port_write;
+    jmptab[CONSOLE_PUTSTR] = (long (*)())port_write;
     jmptab[CONSOLE_PUTCHAR] = (long (*)())port_write_ch;
     jmptab[CONSOLE_GETCHAR] = (long (*)())port_read_ch;
-    jmptab[SD_READ]         = (long (*)())sd_read;
+    jmptab[SD_READ] = (long (*)())sd_read;
 }
 
-static void init_task_info(void)
-{
+static void init_task_info(void) {
     // TODO: [p1-task4] Init 'tasks' array via reading app-info sector
     // NOTE: You need to get some related arguments from bootblock first
     uint64_t taskinfo_size = *(uint32_t *)(OS_SIZE_LOC - 0x8);
@@ -55,8 +50,7 @@ static void init_task_info(void)
 /* Do not touch this comment. Reserved for future projects. */
 /************************************************************/
 
-int main(void)
-{
+int main(void) {
     // Check whether .bss section is set to zero
     int check = bss_check();
 
@@ -73,11 +67,9 @@ int main(void)
 
     output_val[0] = check ? 't' : 'f';
     output_val[1] = version + '0';
-    for (i = 0; i < sizeof(output_str); ++i)
-    {
+    for (i = 0; i < sizeof(output_str); ++i) {
         buf[i] = output_str[i];
-        if (buf[i] == '_')
-        {
+        if (buf[i] == '_') {
             buf[i] = output_val[output_val_pos++];
         }
     }
@@ -91,14 +83,14 @@ int main(void)
     //     if (ch != -1) {
     //         if (ch == '\r')
     //             bios_putstr("\n\r");
-    //         else 
+    //         else
     //             bios_putchar(ch);
     //     }
     // }
     // TODO: Load tasks by either task id [p1-task3] or task name [p1-task4],
     //   and then execute them.
-    
-    // [p1-task3]: 
+
+    // [p1-task3]:
     // int ch, taskid, buf_len = 0;
     // bios_putstr("$ ");
     // while ((ch=bios_getchar())) {
@@ -134,26 +126,25 @@ int main(void)
     int ch, buf_len = 0;
     memset(buf, 0, sizeof(buf));
     bios_putstr("$ ");
-    while ((ch=bios_getchar())) {
+    while ((ch = bios_getchar())) {
         if (ch == -1) continue;
         if (ch == '\r') {
             bios_putstr("\n\r");
             int valid_input = from_name_load_task_img(buf);
-            memset(buf, 0, sizeof(buf)); buf_len = 0;
+            memset(buf, 0, sizeof(buf));
+            buf_len = 0;
             if (!valid_input) {
                 bios_putstr("Invalid task name\n\r");
             }
             bios_putstr("$ ");
-        }
-        else {
+        } else {
             bios_putchar(ch);
             buf[buf_len++] = ch;
         }
     }
-    
+
     // Infinite while loop, where CPU stays in a low-power state (QAQQQQQQQQQQQ)
-    while (1)
-    {
+    while (1) {
         asm volatile("wfi");
     }
 

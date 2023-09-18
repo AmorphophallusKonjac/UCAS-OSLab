@@ -126,6 +126,8 @@ static void create_image(int nfiles, char *files[]) {
                 get_compress_data(phdr, data, &data_len, fp);
             }
 
+            printf("kernel size: %d\n", data_len);
+
             /* prepare environment */
             deflate_set_memory_allocator((void *(*)(int))malloc, free);
             struct libdeflate_compressor *compressor = deflate_alloc_compressor(12);
@@ -141,7 +143,9 @@ static void create_image(int nfiles, char *files[]) {
             }
             nbytes_kernel = bytes_write;
             phyaddr += bytes_write;
-            // printf("compressed kernel ");
+            free(data);
+            free(compressed);
+            printf("compressed kernel size: %d\n", nbytes_kernel);
             fclose(fp);
             files++;
             continue;
