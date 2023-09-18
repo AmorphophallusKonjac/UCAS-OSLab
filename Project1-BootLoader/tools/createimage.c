@@ -139,6 +139,7 @@ static void create_image(int nfiles, char *files[]) {
             if (bytes_write != out_nbytes) {
                 printf("main write fail!");
             }
+            nbytes_kernel = bytes_write;
             phyaddr += bytes_write;
             // printf("compressed kernel ");
             fclose(fp);
