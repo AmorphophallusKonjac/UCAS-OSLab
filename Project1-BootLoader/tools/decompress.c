@@ -14,7 +14,6 @@ int main() {
     int kernel_offset = SECTOR_SIZE + nbytes_compress;
     kernel_offset = kernel_offset % SECTOR_SIZE;
     // prepare environment
-    struct libdeflate_decompressor *decompressor = deflate_alloc_decompressor();
 
     char *compressed = (char *)(DECOM_KERNEL_LOC + kernel_offset);
     char *extracted = (char *)(KERNEL);
