@@ -181,9 +181,9 @@ $(ELF_COMPRESS): $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
 	$(HOST_CC) $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_COMMON) -g -o $@ 
 
 $(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
-	$(HOST_CC) $(SRC_CREATEIMAGE) -o $@ -ggdb -Wall
+	$(HOST_CC) $(SRC_CREATEIMAGE) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_COMMON) -o $@ -ggdb -Wall 
 
-image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_DECOMPRESS) $(ELF_MAIN) $(ELF_USER) $(ELF_COMPRESS)
-	cd $(DIR_BUILD) &&./compress  &&./$(<F) --extended $(filter-out $(<F) compress, $(^F))
+image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_DECOMPRESS) $(ELF_MAIN) $(ELF_USER) 
+	cd $(DIR_BUILD) &&./$(<F) --extended $(filter-out $(<F) compress, $(^F))
 
 .PHONY: image

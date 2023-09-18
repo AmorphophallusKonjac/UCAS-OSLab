@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "deflate/tinylibdeflate.h"
 
 #define IMAGE_FILE "./image"
 #define ARGS "[--extended] [--vm] <bootblock> <executable-file> ..."
@@ -47,6 +48,7 @@ static void write_segment(Elf64_Phdr phdr, FILE *fp, FILE *img, int *phyaddr);
 static void write_padding(FILE *img, int *phyaddr, int new_phyaddr);
 static void write_img_info(int nbytes_kernel, int nbytes_decompress,
                            task_info_t *taskinfo, short tasknum, FILE *img);
+static void get_compress_data(Elf64_Phdr phdr, char *data, int *data_len, FILE *fp);
 
 int main(int argc, char **argv) {
     char *progname = argv[0];
@@ -100,22 +102,49 @@ static void create_image(int nfiles, char *files[]) {
         fp = fopen(*files, "r");
         assert(fp != NULL);
 
+        /* read ELF header */
+        read_ehdr(&ehdr, fp);
+        printf("0x%04lx: %s\n", ehdr.e_entry, *files);
+
         if (strcmp(*files, "main") == 0) {
             fseek(fp, 0, SEEK_END);
             nbytes_kernel = ftell(fp);
             fseek(fp, 0, SEEK_SET);
-            for (int i = 0; i < nbytes_kernel; ++i) {
-                phyaddr++;
-                fputc(fgetc(fp), img);
+            char *data = (char *)malloc(nbytes_kernel);
+            int data_len = 0;
+            memset(data, 0, nbytes_kernel);
+
+            /* for each program header */
+            for (int ph = 0; ph < ehdr.e_phnum; ph++) {
+                /* read program header */
+                read_phdr(&phdr, fp, ph, ehdr);
+
+                if (phdr.p_type != PT_LOAD)
+                    continue;
+
+                /* get segment to the data */
+                get_compress_data(phdr, data, &data_len, fp);
             }
+
+            /* prepare environment */
+            deflate_set_memory_allocator((void *(*)(int))malloc, free);
+            struct libdeflate_compressor *compressor = deflate_alloc_compressor(12);
+            char *compressed = (char *)malloc(data_len + 10);
+            memset(compressed, 0, data_len + 10);
+            /* do compress */
+            int out_nbytes = deflate_deflate_compress(compressor, data, data_len,
+                                                      compressed, data_len + 10);
+            /* write back to main*/
+            size_t bytes_write = fwrite(compressed, 1, out_nbytes, img);
+            if (bytes_write != out_nbytes) {
+                printf("main write fail!");
+            }
+            phyaddr += bytes_write;
+            // printf("compressed kernel ");
             fclose(fp);
             files++;
             continue;
         }
-
-        /* read ELF header */
-        read_ehdr(&ehdr, fp);
-        printf("0x%04lx: %s\n", ehdr.e_entry, *files);
 
         // [p1-task4] create app info:offset, name, entrypoint
         if (taskidx >= 0) {
@@ -209,6 +238,19 @@ static uint32_t get_filesz(Elf64_Phdr phdr) {
 
 static uint32_t get_memsz(Elf64_Phdr phdr) {
     return phdr.p_memsz;
+}
+
+static void get_compress_data(Elf64_Phdr phdr, char *data, int *data_len, FILE *fp) {
+    if (phdr.p_memsz != 0 && phdr.p_type == PT_LOAD) {
+        if (options.extended == 1) {
+            printf("\t\twriting 0x%04lx bytes\n", phdr.p_filesz);
+        }
+        fseek(fp, phdr.p_offset, SEEK_SET);
+        while (phdr.p_filesz-- > 0) {
+            data[*data_len] = fgetc(fp);
+            (*data_len)++;
+        }
+    }
 }
 
 static void write_segment(Elf64_Phdr phdr, FILE *fp, FILE *img, int *phyaddr) {
