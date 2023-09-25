@@ -88,6 +88,7 @@ ELF_IMAGE   = $(DIR_BUILD)/image
 # -----------------------------------------------------------------------
 
 SRC_CRT0    = $(wildcard $(DIR_ARCH)/crt0/*.S)
+DEFLATE_SRC_CRT0 = $(wildcard $(DIR_ARCH)/decompress-crt0/*.S)
 OBJ_CRT0    = $(DIR_BUILD)/$(notdir $(SRC_CRT0:.S=.o))
 
 SRC_USER    = $(wildcard $(DIR_TEST_PROJ)/*.c)
@@ -99,6 +100,21 @@ ELF_USER    = $(patsubst %.c, %, $(foreach file, $(SRC_USER), $(DIR_BUILD)/$(not
 
 SRC_CREATEIMAGE = ./tools/createimage.c
 ELF_CREATEIMAGE = $(DIR_BUILD)/$(notdir $(SRC_CREATEIMAGE:.c=))
+
+DEFLATE_DIR		= ./tools/deflate
+DEFLATE_LIB_DIR = $(DEFLATE_DIR)/lib
+
+DEFLATE_INCLUDE_COMMON = -I$(DEFLATE_LIB_DIR) -I$(DEFLATE_DIR)
+DEFLATE_CFLAGS_COMMON  = -O2 $(DEFLATE_INCLUDE_COMMON) -Wall -DFREESTANDING
+
+DEFLATE_CFLAGS_DEPRESS = $(CFLAGS) -DFREESTANDING $(DEFLATE_INCLUDE_COMMON) -I./arch/riscv/include
+
+SRC_COMPRESS 		= ./tools/compress.c
+SRC_DECOMPRESS  	= ./tools/decompress.c
+DEFLATE_SRC_LIB     = $(DEFLATE_LIB_DIR)/*.c
+DEFLATE_SRC_COMMON  = $(DEFLATE_DIR)/*.c
+ELF_COMPRESS	= $(DIR_BUILD)/compress
+ELF_DECOMPRESS	= $(DIR_BUILD)/decompress
 
 # -----------------------------------------------------------------------
 # Top-level Rules
@@ -116,11 +132,11 @@ floppy:
 	sudo fdisk -l $(DISK)
 	sudo dd if=$(DIR_BUILD)/image of=$(DISK)3 conv=notrunc
 
-asm: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
+asm: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER) $(ELF_DECOMPRESS)
 	for elffile in $^; do $(OBJDUMP) -d $$elffile > $(notdir $$elffile).txt; done
 
 gdb:
-	$(GDB) $(ELF_MAIN) -ex "target remote:1234"
+	$(GDB) $(ELF_DECOMPRESS) -ex "target remote:1234"
 
 run:
 	$(QEMU) $(QEMU_OPTS)
@@ -143,6 +159,9 @@ $(ELF_BOOT): $(SRC_BOOT) riscv.lds
 $(ELF_MAIN): $(SRC_MAIN) riscv.lds
 	$(CC) $(KERNEL_CFLAGS) -o $@ $(SRC_MAIN)
 
+$(ELF_DECOMPRESS): $(SRC_DECOMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(SRC_CRT0)
+	$(CC) $(SRC_DECOMPRESS) $(SRC_CRT0) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_DEPRESS) -g -o $@ -Wl,--defsym=TEXT_START=0x52040000 -T riscv.lds
+
 $(OBJ_CRT0): $(SRC_CRT0)
 	$(CC) $(USER_CFLAGS) -I$(DIR_ARCH)/include -c $< -o $@
 
@@ -150,7 +169,7 @@ $(DIR_BUILD)/%: $(DIR_TEST_PROJ)/%.c $(OBJ_CRT0) riscv.lds
 	$(CC) $(USER_CFLAGS) -o $@ $(OBJ_CRT0) $< -Wl,--defsym=TEXT_START=$(USER_ENTRYPOINT) -T riscv.lds
 	$(eval USER_ENTRYPOINT := $(shell python3 -c "print(hex(int('$(USER_ENTRYPOINT)', 16) + int('0x10000', 16)))"))
 
-elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
+elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER) $(ELF_DECOMPRESS)
 
 .PHONY: elf
 
@@ -158,10 +177,13 @@ elf: $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
 # Host Linux Rules
 # -----------------------------------------------------------------------
 
-$(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE)
-	$(HOST_CC) $(SRC_CREATEIMAGE) -o $@ -ggdb -Wall
+$(ELF_COMPRESS): $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
+	$(HOST_CC) $(SRC_COMPRESS) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_COMMON) -g -o $@ 
 
-image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_MAIN) $(ELF_USER)
-	cd $(DIR_BUILD) && ./$(<F) --extended $(filter-out $(<F), $(^F))
+$(ELF_CREATEIMAGE): $(SRC_CREATEIMAGE) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON)
+	$(HOST_CC) $(SRC_CREATEIMAGE) $(DEFLATE_SRC_LIB) $(DEFLATE_SRC_COMMON) $(DEFLATE_CFLAGS_COMMON) -o $@ -ggdb -Wall 
+
+image: $(ELF_CREATEIMAGE) $(ELF_BOOT) $(ELF_DECOMPRESS) $(ELF_MAIN) $(ELF_USER) 
+	cd $(DIR_BUILD) &&./$(<F) --extended $(filter-out $(<F) compress, $(^F))
 
 .PHONY: image
