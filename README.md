@@ -41,7 +41,7 @@ $
 ```arch/riscv/boot/bootblock.S```完成下述操作：
 
 - 打印```"It's bootblock!"```
-- 将sd卡中的decompress解压程序所在块载入到内存0x52000000
+- 将sd卡中的decompress解压程序所在块载入到内存0x52040000
 - 将sd卡中的kernel所在块加载到内存0x54000000
 - call decompress解压kernel到0x50201000
 - 将sd卡中的task-info所在块加载到内存0x52000000
