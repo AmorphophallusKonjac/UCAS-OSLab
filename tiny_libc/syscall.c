@@ -31,7 +31,7 @@ void sys_move_cursor(int x, int y)
 void sys_write(char *buff)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_write */
-    call_jmptab(WRITE, (long) buff, 0, 0, 0, 0);
+    call_jmptab(PRINT, (long) buff, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_write */
 }
 

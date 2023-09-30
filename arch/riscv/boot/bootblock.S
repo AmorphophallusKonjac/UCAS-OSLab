@@ -12,7 +12,7 @@
 .equ bios_func_entry, 0x50150000
 
 // [p1-task5] depress function entry (jump here to depress kernel)
-.equ decompress, 0x52040000
+.equ decompress, 0x51000000
 
 .equ compressed_kernel, 0x54000000
 
