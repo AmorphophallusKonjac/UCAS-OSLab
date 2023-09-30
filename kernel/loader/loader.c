@@ -24,9 +24,21 @@ uint64_t load_task_img(int taskid) {
 int from_name_load_task_img(char *name) {
     for (int taskidx = 0; taskidx < task_num; ++taskidx) {
         if (strcmp(tasks[taskidx].name, name) == 0) {
-            ((void (*)())load_task_img(taskidx))();
-            return 1;
+            return load_task_img(taskidx);
         }
     }
     return 0;
+}
+
+void from_name_exec_task(char *name) {
+    int flag = 0;
+    for (int taskidx = 0; taskidx < task_num; ++taskidx) {
+        if (strcmp(tasks[taskidx].name, name) == 0) {
+            ((void (*)())load_task_img(taskidx))();
+            flag = 1;
+        }
+    }
+    if (!flag) {
+        bios_putstr("invalid task name\n\r");
+    }
 }

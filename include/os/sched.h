@@ -108,6 +108,18 @@ void do_sleep(uint32_t);
 void do_block(list_node_t *, list_head *queue);
 void do_unblock(list_node_t *);
 
+// for [p2-task1]
+#define LIST2PCB(listptr) ((pcb_t *)((void *)(listptr)-16))
+// for debug
+#include <printk.h>
+static inline void pcb_list_print(list_head *listptr){
+    list_node_t *next=listptr;
+    while((next=next->next)!=listptr){
+        printl("%d ",LIST2PCB(next)->pid);
+    }
+    printl("\n\r");
+}
+
 /************************************************************/
 /* Do not touch this comment. Reserved for future projects. */
 /************************************************************/

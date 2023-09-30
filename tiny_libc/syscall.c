@@ -17,24 +17,28 @@ static long invoke_syscall(long sysno, long arg0, long arg1, long arg2,
 void sys_yield(void)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_yield */
+    call_jmptab(YIELD, 0, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_yield */
 }
 
 void sys_move_cursor(int x, int y)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_move_cursor */
+    call_jmptab(MOVE_CURSOR, (long) x, (long) y, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_move_cursor */
 }
 
 void sys_write(char *buff)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_write */
+    call_jmptab(WRITE, (long) buff, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_write */
 }
 
 void sys_reflush(void)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_reflush */
+    call_jmptab(0, 0, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_reflush */
 }
 

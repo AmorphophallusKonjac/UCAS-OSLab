@@ -58,8 +58,6 @@ static void init_jmptab(void) {
     jmptab[MUTEX_RELEASE] = (long (*)())do_mutex_lock_release;
 
     // TODO: [p2-task1] (S-core) initialize system call table.
-
-    jmptab[SD_READ] = (long (*)())sd_read;
 }
 
 static void init_task_info(void) {
@@ -89,13 +87,39 @@ static void init_pcb_stack(
      * simulate a callee-saved context.
      */
     switchto_context_t *pt_switchto =
-        (switchto_context_t *)((ptr_t)pt_regs - sizeof(switchto_context_t));
+        (switchto_context_t *)((ptr_t)pt_regs - sizeof(switchto_context_t)); 
+    pt_switchto->regs[0] = (reg_t) ret_from_exception;  //ra
+    pt_switchto->regs[1] = (reg_t) pt_switchto;         //sp
+
+    printl("entrypoint %lx\n", entry_point);
+
+    pcb->kernel_sp = (reg_t) pt_switchto;
+    pcb->user_sp = user_stack;
 }
 
 static void init_pcb(void) {
     /* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
+    char needed_task_name[][32] = {"print1", "print2", "fly"};
 
+    for(int i=1; i<=sizeof(needed_task_name)/32; i++){
+        pcb[i].pid = process_id++;
+        pcb[i].status = TASK_READY;
+        
+        init_pcb_stack(
+            allocKernelPage(1) + PAGE_SIZE,
+            allocUserPage(1) + PAGE_SIZE,
+            from_name_load_task_img(needed_task_name[i-1]), 
+            pcb+i
+        );
+        list_push(&ready_queue, &pcb[i].list);
+    }
+    pcb[0]=pid0_pcb;
+
+    printl("initial ready_queue ");
+    pcb_list_print(&ready_queue);
     /* TODO: [p2-task1] remember to initialize 'current_running' */
+    current_running=pcb+0;
+    current_running->status=TASK_BLOCKED; // to stop pcb0 from being pushed into ready_queue
 }
 
 static void init_syscall(void) {
