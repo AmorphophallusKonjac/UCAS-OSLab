@@ -31,20 +31,21 @@ void sys_move_cursor(int x, int y)
 void sys_write(char *buff)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_write */
-    call_jmptab(PRINT, (long) buff, 0, 0, 0, 0);
+    call_jmptab(WRITE, (long) buff, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_write */
 }
 
 void sys_reflush(void)
 {
     /* TODO: [p2-task1] call call_jmptab to implement sys_reflush */
-    call_jmptab(0, 0, 0, 0, 0, 0);
+    call_jmptab(REFLUSH, 0, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_reflush */
 }
 
 int sys_mutex_init(int key)
 {
     /* TODO: [p2-task2] call call_jmptab to implement sys_mutex_init */
+    call_jmptab(MUTEX_INIT, key, 0, 0, 0, 0);
     /* TODO: [p2-task3] call invoke_syscall to implement sys_mutex_init */
     return 0;
 }

@@ -59,6 +59,8 @@ static void init_jmptab(void) {
     jmptab[MUTEX_RELEASE] = (long (*)())do_mutex_lock_release;
 
     // TODO: [p2-task1] (S-core) initialize system call table.
+    jmptab[WRITE] = (long (*)())screen_write;
+    jmptab[REFLUSH] = (long (*)())screen_reflush;
 }
 
 static void init_task_info(void) {
