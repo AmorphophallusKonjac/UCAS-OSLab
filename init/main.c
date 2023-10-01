@@ -102,7 +102,7 @@ static void init_pcb_stack(
 
 static void init_pcb(void) {
     /* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
-    char needed_task_name[][32] = {"print1", "fly", "print2"};
+    char needed_task_name[][32] = {"print1", "fly", "print2", "lock1", "lock2"};
 
     for(int i=1; i<=sizeof(needed_task_name)/32; i++){
         pcb[i].pid = process_id++;

@@ -78,4 +78,11 @@ static inline void list_pop(list_head *queue) {
     ret->prev = ret;
     ret->next = ret;
 }
+
+static inline void list_del(list_node_t *node) {
+    node->next->prev = node->prev;
+    node->prev->next = node->next;
+    node->next = node;
+    node->prev = node;
+}
 #endif

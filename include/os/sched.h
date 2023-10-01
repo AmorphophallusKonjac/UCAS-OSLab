@@ -108,8 +108,8 @@ void do_sleep(uint32_t);
 void do_block(list_node_t *, list_head *queue);
 void do_unblock(list_node_t *);
 
-// for [p2-task1]
-#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-16))
+// [p2-task1]
+#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr) - 16))
 
 /************************************************************/
 /* Do not touch this comment. Reserved for future projects. */
