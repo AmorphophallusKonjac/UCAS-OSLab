@@ -20,6 +20,7 @@
 extern void ret_from_exception();
 #define VERSION_BUF 50
 #define OS_SIZE_LOC 0x502001fc
+#define STACK_PAGE_NUM 1
 
 int version = 2; // version must between 0 and 9
 char buf[VERSION_BUF];
@@ -88,10 +89,10 @@ static void init_pcb_stack(
      */
     switchto_context_t *pt_switchto =
         (switchto_context_t *)((ptr_t)pt_regs - sizeof(switchto_context_t)); 
+    for (int i = 0; i < 14; ++i) 
+        pt_switchto->regs[i] = (reg_t) 0;
     pt_switchto->regs[0] = (reg_t) entry_point;         //ra
     pt_switchto->regs[1] = (reg_t) pt_switchto;         //sp
-
-    printl("entrypoint %lx\n", entry_point);
 
     pcb->kernel_sp = (reg_t) pt_switchto;
     pcb->user_sp = user_stack;
@@ -104,10 +105,12 @@ static void init_pcb(void) {
     for(int i=1; i<=sizeof(needed_task_name)/32; i++){
         pcb[i].pid = process_id++;
         pcb[i].status = TASK_READY;
-        
+        pcb[i].cursor_x = 0;
+        pcb[i].cursor_y = 0;
+        pcb[i].wakeup_time = 0;
         init_pcb_stack(
-            allocKernelPage(1) + PAGE_SIZE,
-            allocUserPage(1) + PAGE_SIZE,
+            allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
+            allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
             from_name_load_task_img(needed_task_name[i-1]), 
             pcb+i
         );
@@ -115,8 +118,6 @@ static void init_pcb(void) {
     }
     pcb[0]=pid0_pcb;
 
-    printl("initial ready_queue ");
-    pcb_list_print(&ready_queue);
     /* TODO: [p2-task1] remember to initialize 'current_running' */
     current_running=pcb+0;
     current_running->status=TASK_BLOCKED; // to stop pcb0 from being pushed into ready_queue

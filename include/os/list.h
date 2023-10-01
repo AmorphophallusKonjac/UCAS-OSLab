@@ -51,24 +51,31 @@ typedef list_node_t list_head;
 #define LIST_HEAD(name) struct list_node name = {&(name), &(name)}
 
 /* TODO: [p2-task1] implement your own list API */
-static inline int list_is_empty(list_head *queue){
-    return queue->next==queue;
+static inline int list_empty(list_head *queue) {
+    return queue->next == queue;
 }
 
-static inline void list_push(list_head *queue, list_node_t *node){
-    node->next=queue;
-    node->prev=queue->prev;
+static inline void list_push(list_head *queue, list_node_t *node) {
+    node->next = queue;
+    node->prev = queue->prev;
     queue->prev = node;
-    node->prev->next=node;
+    node->prev->next = node;
 }
 
-static inline list_node_t *list_pop(list_head *queue){
-    if(list_is_empty(queue)) return 0;
-    list_node_t *ret=queue->next;
-    queue->next=queue->next->next;
-    queue->next->prev=queue;
-    ret->prev=ret;
-    ret->next=ret;
+static inline list_node_t *list_front(list_head *queue) {
+    if (list_empty(queue)) 
+        return 0;
+    list_node_t *ret = queue->next;
     return ret;
+}
+
+static inline void list_pop(list_head *queue) {
+    if (list_empty(queue)) 
+        return;
+    list_node_t *ret = queue->next;
+    queue->next = queue->next->next;
+    queue->next->prev = queue;
+    ret->prev = ret;
+    ret->next = ret;
 }
 #endif

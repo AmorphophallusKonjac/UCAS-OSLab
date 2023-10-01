@@ -34,23 +34,18 @@ void do_scheduler(void)
 
     // TODO: [p2-task1] Modify the current_running pointer.
     pcb_t *prev_running = current_running;
-    if(prev_running->status==TASK_RUNNING){
-        // else, the task is blocked, don't push it to ready_queue
-        // or is exited, don't push it to ready_queue (for [p2-task5])
+    if(prev_running->status==TASK_RUNNING) {
         list_push(&ready_queue, &prev_running->list);
         prev_running->status = TASK_READY;
     }
     
-    list_node_t *next_node;
-    if(list_is_empty(&ready_queue)) {
+    if(list_empty(&ready_queue)) {
         do_scheduler(); // nothing to do 
         return;
-    }else{
-        next_node = list_pop(&ready_queue);
     }
-
-    current_running = LIST2PCB(next_node);
+    current_running = NODE2PCB(list_front(&ready_queue));
     current_running->status = TASK_RUNNING;
+    list_pop(&ready_queue);
 
     // TODO: [p2-task1] switch_to current_running
     switch_to(prev_running, current_running);
