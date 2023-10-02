@@ -84,7 +84,15 @@ static void init_pcb_stack(
       */
     regs_context_t *pt_regs =
         (regs_context_t *)(kernel_stack - sizeof(regs_context_t));
-
+    for (int i = 0; i < 32; ++i)
+        pt_regs->regs[i] = 0;
+    pt_regs->regs[2] = (reg_t) user_stack;      // sp
+    pt_regs->regs[4] = (reg_t) pcb;
+    // When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
+    pt_regs->sstatus = (reg_t) SR_SPIE & ~SR_SPP; 
+    pt_regs->sepc = (reg_t) entry_point;
+    pt_regs->sbadaddr = (reg_t) 0;
+    pt_regs->scause = (reg_t) 0;
     /* TODO: [p2-task1] set sp to simulate just returning from switch_to
      * NOTE: you should prepare a stack, and push some values to
      * simulate a callee-saved context.
@@ -93,8 +101,11 @@ static void init_pcb_stack(
         (switchto_context_t *)((ptr_t)pt_regs - sizeof(switchto_context_t)); 
     for (int i = 0; i < 14; ++i) 
         pt_switchto->regs[i] = (reg_t) 0;
-    pt_switchto->regs[0] = (reg_t) entry_point;         //ra
-    pt_switchto->regs[1] = (reg_t) pt_switchto;         //sp
+    // [p2-task1]
+    // pt_switchto->regs[0] = (reg_t) entry_point;         // ra
+    // [p2-task3]
+    pt_switchto->regs[0] = (reg_t) ret_from_exception;     // ra
+    pt_switchto->regs[1] = (reg_t) pt_switchto;            // sp
 
     pcb->kernel_sp = (reg_t) pt_switchto;
     pcb->user_sp = user_stack;
@@ -127,6 +138,16 @@ static void init_pcb(void) {
 
 static void init_syscall(void) {
     // TODO: [p2-task3] initialize system call table.
+    syscall[SYSCALL_SLEEP] = (long (*)())do_sleep;
+    syscall[SYSCALL_YIELD] = (long (*)())do_scheduler;
+    syscall[SYSCALL_WRITE] = (long (*)())screen_write;
+    syscall[SYSCALL_CURSOR] = (long (*)())screen_move_cursor;
+    syscall[SYSCALL_REFLUSH] = (long (*)())screen_reflush;
+    syscall[SYSCALL_GET_TIMEBASE] = (long (*)())get_time_base;
+    syscall[SYSCALL_GET_TICK] = (long (*)())get_ticks;
+    syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
+    syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
+    syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
 }
 /************************************************************/
 
