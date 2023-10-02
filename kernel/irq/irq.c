@@ -14,13 +14,20 @@ void interrupt_helper(regs_context_t *regs, uint64_t stval, uint64_t scause)
 {
     // TODO: [p2-task3] & [p2-task4] interrupt handler.
     // call corresponding handler by the value of `scause`
-    exc_table[scause](regs, stval, scause);
+    if (scause & (1UL << 63)) {
+        irq_table[scause ^ (1UL << 63)](regs, stval, scause);
+    }
+    else {
+        exc_table[scause](regs, stval, scause);
+    }
 }
 
 void handle_irq_timer(regs_context_t *regs, uint64_t stval, uint64_t scause)
 {
     // TODO: [p2-task4] clock interrupt handler.
     // Note: use bios_set_timer to reset the timer and remember to reschedule
+    bios_set_timer(get_ticks() + TIMER_INTERVAL);
+    do_scheduler();
 }
 
 void init_exception()
@@ -33,7 +40,11 @@ void init_exception()
     exc_table[EXCC_SYSCALL] = (handler_t) handle_syscall;
     /* TODO: [p2-task4] initialize irq_table */
     /* NOTE: handle_int, handle_other, etc.*/
-
+    for (int i = 0; i < IRQC_COUNT; ++i) {
+        irq_table[i] = (handler_t) handle_other;
+    }
+    irq_table[IRQC_S_TIMER] = (handler_t) handle_irq_timer;
+    // irq_table[IRQC_U_TIMER] = (handler_t) handle_irq_timer;
     /* TODO: [p2-task3] set up the entrypoint of exceptions */
     setup_exception();
 }

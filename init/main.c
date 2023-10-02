@@ -129,11 +129,14 @@ static void init_pcb(void) {
         );
         list_push(&ready_queue, &pcb[i].list);
     }
-    pcb[0]=pid0_pcb;
+    pcb[0] = pid0_pcb;
 
     /* TODO: [p2-task1] remember to initialize 'current_running' */
-    current_running=pcb+0;
-    current_running->status=TASK_BLOCKED; // to stop pcb0 from being pushed into ready_queue
+    current_running = pcb + 0;
+    current_running->status = TASK_BLOCKED; // to stop pcb0 from being pushed into ready_queue
+    asm volatile ("mv tp, %0;"
+                  :
+                  :"r"(current_running)); // set tp = current_running
 }
 
 static void init_syscall(void) {
@@ -200,14 +203,17 @@ int main(void) {
     init_screen();
     printk("> [INIT] SCREEN initialization succeeded.\n");
 
+    // [p2-task4] set the first time interupt
+    bios_set_timer(get_ticks() + TIMER_INTERVAL);
+
     // Infinite while loop, where CPU stays in a low-power state (QAQQQQQQQQQQQ)
     while (1) {
         // If you do non-preemptive scheduling, it's used to surrender control
-        do_scheduler();
+        // do_scheduler();
 
         // If you do preemptive scheduling, they're used to enable CSR_SIE and wfi
-        // enable_preempt();
-        // asm volatile("wfi");
+        enable_preempt();
+        asm volatile("wfi");
     }
 
     return 0;

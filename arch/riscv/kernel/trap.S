@@ -8,6 +8,11 @@ ENTRY(setup_exception)
   csrw CSR_STVEC, t0
 
   /* TODO: [p2-task4] enable interrupts globally */
+  addi sp, sp, -8
+  sd ra, 0(sp)
+  call enable_interrupt
+  ld ra, 0(sp)
+  addi sp, sp, 8
 
   jr ra
 ENDPROC(setup_exception)
