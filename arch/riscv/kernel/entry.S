@@ -202,6 +202,7 @@ ENTRY(exception_handler_entry)
    * NOTE: don't forget to pass parameters for it.
    */
   mv a0, sp
+  addi a0, a0, 8
   csrr a1, CSR_STVAL
   csrr a2, CSR_SCAUSE
   call interrupt_helper

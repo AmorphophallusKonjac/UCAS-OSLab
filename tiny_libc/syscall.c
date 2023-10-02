@@ -21,7 +21,7 @@ static long invoke_syscall(long sysno, long arg0, long arg1, long arg2,
                   :"=r"(ret)
                   :"r"(sysno), "r"(arg0), "r"(arg1), "r"(arg2), "r"(arg3), "r"(arg4));
 
-    return 0;
+    return ret;
 }
 
 void sys_yield(void)
