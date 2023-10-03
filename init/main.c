@@ -151,6 +151,7 @@ static void init_syscall(void) {
     syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
     syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
     syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
+    syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 }
 /************************************************************/
 

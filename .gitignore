@@ -2,3 +2,4 @@ build
 .vscode
 .clang-format
 .gdbinit
+tail_log.sh

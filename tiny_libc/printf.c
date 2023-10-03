@@ -238,3 +238,31 @@ int printf(const char *fmt, ...)
 
     return ret;
 }
+
+static int _vprint(const char *fmt, va_list _va,
+               void (*output)(char*)) {
+    va_list va;
+    va_copy(va, _va);
+
+    int ret;
+    char buff[256];
+
+    ret = mini_vsnprintf(buff, 256, fmt, va);
+
+    buff[ret] = '\0';
+
+    output(buff);
+
+    return ret;
+}
+
+int printl(const char *fmt, ...) {
+    int ret = 0;
+    va_list va;
+
+    va_start(va, fmt);
+    ret = _vprint(fmt, va, sys_bios_logging);
+    va_end(va);
+
+    return ret;
+}

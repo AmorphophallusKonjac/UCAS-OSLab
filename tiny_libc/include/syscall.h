@@ -12,4 +12,7 @@
 #define SYSCALL_LOCK_ACQ 41
 #define SYSCALL_LOCK_RELEASE 42
 
+// printl
+#define SYSCALL_BIOS_LOGGING 80
+
 #endif
