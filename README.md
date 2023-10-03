@@ -1,4 +1,4 @@
-# Project 1 引导、镜像文件和ELF文件
+# Project 2 简易内核实现
 
 ## 实验任务
 
@@ -6,11 +6,11 @@
 
 具体如下：
 
-- 任务1：第一个引导块的制作（C,A,S-core）
-- 任务2：开始制作镜像文件（C,A,S-core）
-- 任务3：加载并选择启动多个用户程序之一（C,A,S-core）
-- 任务4：镜像文件的紧密排列（C,A-core）
-- 任务5：内核镜像的压缩（C-core）
+- 任务1：任务启动与非抢占式调度（C,A,S-core）
+- 任务2：互斥锁的实现（C,A,S-core）
+- 任务3：系统调用（C,A,S-core）
+- 任务4：时钟中断、抢占式调度（C,A-core）
+- 任务5：实现线程的创建 thread_create（C-core）
 
 ## 运行说明
 
@@ -22,132 +22,96 @@ make floppy     # 将镜像写入SD卡
 make minicom    # 监视串口
 ```
 
-进入BBL界面后，输入```loadboot```命令来启动bootloader。将进入以下界面：
+进入BBL界面后，输入```loadbootd```命令来启动bootloader。将进入以下界面：
 
 ```
-=> loadboot
-It's a bootloader...
-Hello OS!
-bss check: t version: 2
-$ 
+> [TASK] This task is to test scheduler. (227)                                  
+> [TASK] This task is to test scheduler. (264)                                  
+> [TASK] Has acquired lock and exited.                                          
+> [TASK] Applying for a lock.                                                   
+> [TASK] This task is to test sleep. (8)                                        
+> [TASK] This is a thread to timing! (19/191143416 seconds).                    
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+                             _                                                 
+                           -=\`\                                               
+                       |\ ____\_\__                                             
+                     -=\c`""""""" "`)                                           
+                        `~~~~~/ /~~`                                            
+                          -==/ /       
+                            '-'                                          
 ```
 
-此时，操作系统已成功进入kernel，等待用户输入待执行的**应用（Application, 以下简称app）**
+此时，操作系统已成功进入kernel，并开始进程的调度。
 
 ## 运作流程
 
-### 引导块
+### 载入用户程序并初始化PCB
 
-```arch/riscv/boot/bootblock.S```完成下述操作：
+```init_pcb(init/main.c)```完成下述操作：
+- 初始化PCB，包括pid、用户栈和内核栈
+- 载入用户程序
+- 将PCB加入内核栈
 
-- 打印```"It's bootblock!"```
-- 将sd卡中的decompress解压程序所在块载入到内存0x52040000
-- 将sd卡中的kernel所在块加载到内存0x54000000
-- call decompress解压kernel到0x50201000
-- 将sd卡中的task-info所在块加载到内存0x52000000
-- 跳转到kernel入口地址
+栈空间的分配详见```kernel/mm/mm.c```，代码中的栈空间分配如下：
+- 内核栈空间：从0x50501000开始每次分配4096B
+- 用户栈空间：从0x52500000开始每次分配4096B
 
-### 内核起点
+比较tricky的是对于内核栈内容的初始化，模拟之前被调度放弃CPU之后存在内核栈上的上下文。这样第一次switch_to到用户程序的时候，就可以正常运行。
 
-```arch/riscv/kernel/head.S```完成下述操作：
+注意到```pcb[0]```被设定为```pid0_pcb```。我们认为其代表一个现在运行的进程，即将被调度。
 
-- 清空bss段
-- 设置内核栈指针
+### 初始化锁
 
-### 内核
+```init_locks(kernel/locking/lock.c)```完成下述操作：
+- 初始化锁，包括key、block队列和状态
 
-```init/main.c```完成下述操作：
+### 初始化例外处理
 
-- 检验bss段已清空
-- 初始化bios
-- 读取内存0x52000000处的```task-info```，保存到位于bss段的全局变量中，以防被后续应用覆盖
-- 读取用户输入，调用各应用
+```init_exception(kernel/irq/irq.c)```完成下述操作：
+- 初始化例外入口表
+- 初始化中断入口表
+- 调用```setup_exception(arch/riscv/kernel/trap.S)```设置例外入口地址(```STVEC```)，打开全局中断。
 
-### 用户任务的加载与执行
+### 初始化系统调用表
 
-```kernel/loader/loader.c```共提供了两个函数，以供```init/main.c```调用：
+```init_syscall(init/main.c)```完成下述操作：
+- 初始化系统调用表
 
-```h
-uint64_t load_task_img(int taskid);
-void from_name_load_task_img(char *taskname);
-```
+### 初始化屏幕
 
-其中，
+```init_screen(drivers/screen.c)```完成下述操作：
+- 初始化屏幕
 
-```load_task_img```将根据```taskid```从sd卡中读取下对应的task并跳转到该task的入口。
+### 开始调度
 
-```from_name_load_task_img```将在```task-info```信息中逐个比对输入的task名。若输入的任务存在，则调用```load_task_img```函数执行该任务；否则，反馈失败信息给```init/main.c```。
+- S-core: 主动调用```do_scheduler(kernel/sched/sched.c)```开始调度
+- C,A-core：设定下一次时钟中断时间，打开时钟中断使能，等待时钟中断开始调度
 
-### 测试程序与解压程序入口
+## 实现细节
 
-```crt0.S```完成下述操作：
+### 调度算法
 
-- 清空bss段
-- 保存返回地址到栈空间
-- 调用main
-- 恢复栈中的返回地址
-- 返回内核/bootblock
+Round robin算法。每次调度将```ready_queue```队头进程替换当前正在运行的进程，调用```switch_to(arch/riscv/kernel/entry.S)```返回之后就是新的进程在运行了。
 
-## 设计细节
+值得注意的是，执行```switch_to```的时候进程是运行在内核栈上的，而在任务3时才会把用户栈和内核栈区分开来。
 
-### 镜像文件结构
+### 互斥锁
 
-镜像文件由```createimage.c```合成，具体依次存放了以下信息：
+初始化锁```do_mutex_lock_init(kernel/locking/lock.c)```，先找是否有相同```key```的锁，有就返回锁的编号，没有就找一个没有```key```的锁设置```key```并返回编号。
 
-- bootblock (padding到512B)
-- decompress
-- kernel
-- app 1, app 2, ... , app n
-- task-info
+申请锁```do_mutex_lock_acquire(kernel/locking/lock.c)```，锁被锁上了就阻塞，直到锁没有锁上就占用锁并继续运行
 
-其中，
+释放锁```do_mutex_lock_release(kernel/locking/lock.c)```，释放锁，并且将锁的阻塞队列队头的进程加入```ready_queue```。
 
-在任务三中，没有decompress，kernel和各个app均被padding到15个扇区（512B）。
+### 例外处理
 
-在任务四中，没有decompress，kernel，各个app以及app-info依次紧密存储。
+发生例外后，进入S-Mode，跳转到```STVEC```也就是```exception_handler_entry(arch/riscv/kernel/entry.S)```，切换到内核栈，保存上下文到内核栈，跳转到```interrupt_helper(kernel/irq/irq.c)```处理例外，处理完毕之后跳转到```ret_from_exception(arch/riscv/kernel/entry.S)```，恢复上下文，切换到用户栈，用```sret```回到用户代码段。
 
-在任务五中，decompress，kernel，各个app以及task-info依次紧密存储并且kernel是被压缩过的。
+### 睡眠
 
-### task-info结构
+```do_sleep(kernel/sched/sched.c)```将当前进程加入全局阻塞队列，设定醒来时间，调度新的进程运行。
 
-task-info主要包括以下信息：
-
-```h
-// include/os/task.h
-
-typedef struct {
-    char name[32];
-    int offset;
-    int size;
-    uint64_t entrypoint;
-} task_info_t;
-
-extern task_info_t tasks[TASK_MAXNUM];
-
-extern uint16_t task_num;
-```
-
-其中，
-- ```name```属性用来标识task的调用名
-- ```offset```属性用来记录该task在image文件中距离文件开始位置的偏移量
-- ```size```属性用来记录该task在image文件中的字节数
-- ```entrypoint```属性来自ELF文件中记载的程序入口地址
-
-
-### 辅助信息的存储
-
-bios提供的```bios_sdread```函数需要提供块id，块数信息来一块一块地（512B）读取sd卡。这意味着需要存储kernel块数，task-info块id、块数信息，以辅助sd上数据块的加载。
-
-注意到bootblock块末尾有大端空白，因此将这些信息存储在了bootblock块的最后的28B中。依次为：
-
-- kernel在image文件中的偏移量，4B
-- kernel块id，2B
-- kernel块数，2B
-- decompress大小，4B
-- kernel大小，4B
-- task-info在image文件中的偏移量，4B
-- task-info大小，4B
-- task-info块id，2B
-- task-info块树，2B
-
-这些信息随bootblock块在一开始就被加载到内存。
+```check_sleeping(kernel/sched/time.c)```每次调度前先检查是否有进程要醒来了，将醒来的进程加入```ready_queue```
