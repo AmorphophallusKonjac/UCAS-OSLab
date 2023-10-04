@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
+const int threshold = 20;
+
 int sum[2];
 int cnt;
 
@@ -12,8 +14,8 @@ void *adder(void *arg) {
     struct arg *args = (struct arg *) arg;
     while (1) {
         sys_move_cursor(0, args->print_location);
-        printf("> [TASK] This task is child thread %d. (%d)", args->idx, ++sum[args->print_location]);
-        if (sum[args->print_location] - sum[(args->print_location) ^ 1] >= 20) {
+        printf("> [TASK] This task is child thread %d. (%d)", args->idx, ++sum[args->idx]);
+        if (sum[args->idx] - sum[(args->idx) ^ 1] >= threshold) {
             ++cnt;
             sys_thread_yield();
         }
@@ -31,7 +33,7 @@ int main(void)
     }
     while (1) {
         sys_move_cursor(0, print_location);
-        printf(">[TASK] This task is father thread. (%d)", cnt);
+        printf("> [TASK] This task is father thread. (%d)", cnt);
         sys_thread_yield();
     }
 }
