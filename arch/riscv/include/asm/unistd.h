@@ -15,4 +15,8 @@
 // printl
 #define SYSCALL_BIOS_LOGGING 80
 
+// [p2-task5]
+#define SYSCALL_THREAD_CREATE 81
+#define SYSCALL_THREAD_YIELD 82
+
 #endif

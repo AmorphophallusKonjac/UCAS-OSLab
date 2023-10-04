@@ -8,6 +8,7 @@
 #include <assert.h>
 
 pcb_t pcb[NUM_MAX_TASK];
+tcb_t tcb[NUM_MAX_TASK];
 const ptr_t pid0_stack = INIT_KERNEL_STACK + PAGE_SIZE;
 pcb_t pid0_pcb = {
     .pid = 0,
@@ -23,6 +24,8 @@ pcb_t * volatile current_running;
 
 /* global process id */
 pid_t process_id = 1;
+
+pid_t thread_id = 1;
 
 void do_scheduler(void)
 {

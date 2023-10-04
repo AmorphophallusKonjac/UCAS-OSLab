@@ -75,7 +75,7 @@ static void init_task_info(void) {
 
 /************************************************************/
 static void init_pcb_stack(
-    ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
+    ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point, ptr_t arg,
     pcb_t *pcb) {
     /* TODO: [p2-task3] initialization of registers on kernel stack
       * HINT: sp, ra, sepc, sstatus
@@ -87,7 +87,8 @@ static void init_pcb_stack(
     for (int i = 0; i < 32; ++i)
         pt_regs->regs[i] = 0;
     pt_regs->regs[2] = (reg_t) user_stack;      // sp
-    pt_regs->regs[4] = (reg_t) pcb;
+    pt_regs->regs[4] = (reg_t) pcb;             // tp
+    pt_regs->regs[10] = (reg_t) arg;            // a0
     // When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
     pt_regs->sstatus = (reg_t) SR_SPIE & ~SR_SPP; 
     pt_regs->sepc = (reg_t) entry_point;
@@ -115,7 +116,7 @@ static void init_pcb(void) {
     /* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
     char needed_task_name[][32] = {"lock2", "print1", "sleep", "fly", "print2", "lock1", "timer"};
 
-    for(int i=1; i<=sizeof(needed_task_name)/32; i++){
+    for(int i = 1; i <= sizeof(needed_task_name) / 32; i++){
         pcb[i].pid = process_id++;
         pcb[i].status = TASK_READY;
         pcb[i].cursor_x = 0;
@@ -125,7 +126,8 @@ static void init_pcb(void) {
             allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
             allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
             from_name_load_task_img(needed_task_name[i-1]), 
-            pcb+i
+            0,
+            pcb + i
         );
         list_push(&ready_queue, &pcb[i].list);
     }
@@ -137,6 +139,34 @@ static void init_pcb(void) {
     asm volatile ("mv tp, %0;"
                   :
                   :"r"(current_running)); // set tp = current_running
+}
+
+static int thread_create(int *tidptr, long func, void *arg) {
+    int thread_idx = -1;
+    for (int i = 0; i < NUM_MAX_TASK; ++i) {
+        if (tcb[i].tid == 0) {
+            thread_idx = i;
+            break;
+        }
+    }
+    if (thread_idx < 0) {
+        return 1;
+    }
+    tcb[thread_idx].tid = thread_id++;
+    tcb[thread_idx].status = TASK_READY;
+    tcb[thread_idx].cursor_x = 0;
+    tcb[thread_idx].cursor_y = 0;
+    tcb[thread_idx].wakeup_time = 0;
+    init_pcb_stack(
+            allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
+            allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
+            (ptr_t) func,
+            (ptr_t) arg, 
+            tcb + thread_idx
+        );
+    list_push(&ready_queue, &tcb[thread_idx].list);
+    *tidptr = tcb[thread_idx].tid;
+    return 0;
 }
 
 static void init_syscall(void) {
@@ -152,6 +182,8 @@ static void init_syscall(void) {
     syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
     syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
     syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
+    syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
+    syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_scheduler;
 }
 /************************************************************/
 

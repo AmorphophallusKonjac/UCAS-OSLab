@@ -92,6 +92,14 @@ void sys_bios_logging(char *buff) {
     invoke_syscall(SYSCALL_BIOS_LOGGING, (long)buff, IGNORE, IGNORE, IGNORE, IGNORE);
 }
 
+int sys_thread_create(int *tidptr, long func, void *arg) {
+    return invoke_syscall(SYSCALL_THREAD_CREATE, (long)tidptr, func, (long)arg, IGNORE, IGNORE);
+}
+
+void sys_thread_yield(void) {
+    invoke_syscall(SYSCALL_THREAD_YIELD, IGNORE, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
 /************************************************************/
 /* Do not touch this comment. Reserved for future projects. */
 /************************************************************/

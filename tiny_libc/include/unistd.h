@@ -14,6 +14,8 @@ int sys_mutex_init(int key);
 void sys_mutex_acquire(int mutex_idx);
 void sys_mutex_release(int mutex_idx);
 void sys_bios_logging(char *buff);
+int sys_thread_create(int *tidptr, long func, void *arg);
+void sys_thread_yield(void);
 
 /************************************************************/
 /* Do not touch this comment. Reserved for future projects. */
