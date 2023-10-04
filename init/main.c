@@ -87,7 +87,7 @@ static void init_pcb_stack(
     for (int i = 0; i < 32; ++i)
         pt_regs->regs[i] = 0;
     pt_regs->regs[2] = (reg_t) user_stack;      // sp
-    pt_regs->regs[4] = (reg_t) pcb;             // tp
+    pt_regs->regs[4] = (reg_t) pcb->fa;         // tp
     pt_regs->regs[10] = (reg_t) arg;            // a0
     // When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
     pt_regs->sstatus = (reg_t) SR_SPIE & ~SR_SPP; 
@@ -114,10 +114,13 @@ static void init_pcb_stack(
 
 static void init_pcb(void) {
     /* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
-    // char needed_task_name[][32] = {"lock2", "print1", "sleep", "fly", "print2", "lock1", "timer"};
-    char needed_task_name[][32] = {"pthread", "fly"};
+    char needed_task_name[][32] = {"lock2", "print1", "sleep", "fly", "print2", "lock1", "timer", "pthread"};
+    // char needed_task_name[][32] = {"pthread", "fly"};
 
-    for(int i = 1; i <= sizeof(needed_task_name) / 32; i++){
+    for(int i = 1; i <= sizeof(needed_task_name) / 32; i++) {
+        pcb[i].fa = &pcb[i];
+        pcb[i].ready_queue.next = &pcb[i].ready_queue;
+        pcb[i].ready_queue.prev = &pcb[i].ready_queue;
         pcb[i].pid = process_id++;
         pcb[i].status = TASK_READY;
         pcb[i].cursor_x = 0;
@@ -153,6 +156,8 @@ static int thread_create(int *tidptr, long func, void *arg) {
     if (thread_idx < 0) {
         return 1;
     }
+    tcb[thread_idx].pid = current_running->pid;
+    tcb[thread_idx].fa = current_running;
     tcb[thread_idx].tid = thread_id++;
     tcb[thread_idx].status = TASK_READY;
     tcb[thread_idx].cursor_x = 0;
@@ -165,7 +170,7 @@ static int thread_create(int *tidptr, long func, void *arg) {
             (ptr_t) arg, 
             tcb + thread_idx
         );
-    list_push(&ready_queue, &tcb[thread_idx].list);
+    list_push(&tcb[thread_idx].fa->ready_queue, &tcb[thread_idx].list);
     *tidptr = tcb[thread_idx].tid;
     return 0;
 }
@@ -184,7 +189,7 @@ static void init_syscall(void) {
     syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
     syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
     syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
-    syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_scheduler;
+    syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_thread_scheduler;
 }
 /************************************************************/
 

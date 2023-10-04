@@ -74,8 +74,15 @@ typedef struct pcb
 
     /* process id */
     pid_t pid;
-    /* */
+
+    /* thread id */
     tid_t tid;
+
+    /* pcb pointer */
+    struct pcb* fa;
+
+    /* thread group */
+    list_head ready_queue;
 
     /* BLOCK | READY | RUNNING */
     task_status_t status;
@@ -107,6 +114,7 @@ extern const ptr_t pid0_stack;
 
 extern void switch_to(pcb_t *prev, pcb_t *next);
 void do_scheduler(void);
+void do_thread_scheduler(void);
 void do_sleep(uint32_t);
 
 void do_block(list_node_t *, list_head *queue);

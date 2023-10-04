@@ -27,9 +27,17 @@ pid_t process_id = 1;
 
 pid_t thread_id = 1;
 
+static inline void list_print(list_head *queue) {
+    printl("print list\n");
+    for (list_node_t *node = queue->next; node != queue; node = node->next) {
+        printl("tid: %d; ks: %X; addr: %X\n", NODE2PCB(node)->tid, NODE2PCB(node)->kernel_sp, NODE2PCB(node));
+    }
+}
+
 void do_scheduler(void)
 {
     // TODO: [p2-task3] Check sleep queue to wake up PCBs
+    list_print(&pcb[1].ready_queue);
     check_sleeping();
     /************************************************************/
     /* Do not touch this comment. Reserved for future projects. */
@@ -52,6 +60,38 @@ void do_scheduler(void)
 
     // TODO: [p2-task1] switch_to current_running
     switch_to(prev_running, current_running);
+}
+
+
+void swap(reg_t *a, reg_t *b) {
+    reg_t t;
+    t = *a;
+    *a = *b;
+    *b = t;
+    return;
+}
+
+void do_thread_scheduler(void) {
+    check_sleeping();
+    list_print(&current_running->ready_queue);
+    pcb_t *prev_running = current_running;
+    if(list_empty(&ready_queue)) {
+        switch_to(prev_running, current_running);
+        return;
+    }
+    prev_running = NODE2PCB(list_front(&current_running->ready_queue));
+    list_pop(&current_running->ready_queue);
+    list_push(&current_running->ready_queue, &prev_running->list);
+    swap(&current_running->kernel_sp, &prev_running->kernel_sp);
+    swap(&current_running->user_sp, &prev_running->user_sp);
+    tid_t t; 
+    t = current_running->tid; 
+    current_running->tid = prev_running->tid;
+    prev_running->tid = t; 
+    list_print(&current_running->ready_queue);
+    current_running->status = TASK_RUNNING;
+    switch_to(prev_running, current_running);
+    list_print(&current_running->ready_queue);
 }
 
 void do_sleep(uint32_t sleep_time)
