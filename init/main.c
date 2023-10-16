@@ -121,8 +121,8 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 static void init_pcb(void)
 {
 	/* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
-	char needed_task_name[][32] = { "lock2",  "print1", "sleep", "fly",
-					"print2", "lock1",  "timer", "pthread" };
+	char needed_task_name[][32] = { "fly",	 "print1", "print2", "lock1",
+					"lock2", "sleep",  "timer",  "pthread" };
 	// char needed_task_name[][32] = {"pthread", "fly"};
 
 	for (int i = 1; i <= sizeof(needed_task_name) / 32; i++) {

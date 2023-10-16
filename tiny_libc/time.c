@@ -2,5 +2,5 @@
 
 clock_t clock()
 {
-    return (clock_t)sys_get_tick();
+	return (clock_t)sys_get_tick();
 }
