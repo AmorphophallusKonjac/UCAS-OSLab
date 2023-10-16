@@ -82,5 +82,7 @@ void do_mutex_lock_release(int mlock_idx)
 	mlocks[mlock_idx].lock.status = UNLOCKED;
 	if (list_empty(&mlocks[mlock_idx].block_queue))
 		return;
-	do_unblock(list_front(&mlocks[mlock_idx].block_queue));
+	while (!list_empty(&mlocks[mlock_idx].block_queue)) {
+		do_unblock(list_front(&mlocks[mlock_idx].block_queue));
+	}
 }

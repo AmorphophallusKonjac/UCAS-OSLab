@@ -3,8 +3,8 @@
 
 const int threshold = 5;
 
-int sum[2];
-int cnt;
+volatile int sum[2];
+volatile int cnt;
 
 struct arg {
 	int idx, print_location;
