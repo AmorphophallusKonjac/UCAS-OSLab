@@ -2,6 +2,7 @@
 #include <os/lock.h>
 #include <os/sched.h>
 #include <os/time.h>
+#include <os/kernel.h>
 #include <os/mm.h>
 #include <screen.h>
 #include <printk.h>
@@ -48,6 +49,7 @@ void do_scheduler(void)
 	current_running->status = TASK_RUNNING;
 	list_pop(&ready_queue);
 
+	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
 	switch_to(prev_running, current_running);
 }
