@@ -29,8 +29,7 @@ struct libdeflate_compressor;
  * A single compressor is not safe to use by multiple threads concurrently.
  * However, different threads may use different compressors concurrently.
  */
-struct libdeflate_compressor *
-deflate_alloc_compressor(int compression_level);
+struct libdeflate_compressor *deflate_alloc_compressor(int compression_level);
 
 /*
  * libdeflate_deflate_compress() performs raw DEFLATE compression on a buffer of
@@ -64,18 +63,16 @@ deflate_alloc_compressor(int compression_level);
  * To avoid this, either don't write tests like the above, or make sure to
  * include at least 9 bytes of slack space in 'out_nbytes_avail'.
  */
-int
-deflate_deflate_compress(struct libdeflate_compressor *compressor,
-			    const void *in, int in_nbytes,
-			    void *out, int out_nbytes_avail);
+int deflate_deflate_compress(struct libdeflate_compressor *compressor,
+			     const void *in, int in_nbytes, void *out,
+			     int out_nbytes_avail);
 
 /*
  * libdeflate_free_compressor() frees a compressor that was allocated with
  * libdeflate_alloc_compressor().  If a NULL pointer is passed in, no action is
  * taken.
  */
-void
-deflate_free_compressor(struct libdeflate_compressor *compressor);
+void deflate_free_compressor(struct libdeflate_compressor *compressor);
 
 /* ========================================================================== */
 /*                             Decompression                                  */
@@ -95,8 +92,7 @@ struct libdeflate_decompressor;
  * A single decompressor is not safe to use by multiple threads concurrently.
  * However, different threads may use different decompressors concurrently.
  */
-struct libdeflate_decompressor *
-deflate_alloc_decompressor(void);
+struct libdeflate_decompressor *deflate_alloc_decompressor(void);
 
 /*
  * libdeflate_deflate_decompress() decompresses a DEFLATE stream from the buffer
@@ -129,19 +125,17 @@ deflate_alloc_decompressor(void);
  *     not large enough but no other problems were encountered, or another
  *     nonzero result code if decompression failed for another reason.
  */
-int
-deflate_deflate_decompress(struct libdeflate_decompressor *decompressor,
-			      const void *in, int in_nbytes,
-			      void *out, int out_nbytes_avail,
-			      int *actual_out_nbytes_ret);
+int deflate_deflate_decompress(struct libdeflate_decompressor *decompressor,
+			       const void *in, int in_nbytes, void *out,
+			       int out_nbytes_avail,
+			       int *actual_out_nbytes_ret);
 
 /*
  * libdeflate_free_decompressor() frees a decompressor that was allocated with
  * libdeflate_alloc_decompressor().  If a NULL pointer is passed in, no action
  * is taken.
  */
-void
-deflate_free_decompressor(struct libdeflate_decompressor *decompressor);
+void deflate_free_decompressor(struct libdeflate_decompressor *decompressor);
 
 /* ========================================================================== */
 /*                           Custom memory allocator                          */
@@ -158,9 +152,8 @@ deflate_free_decompressor(struct libdeflate_decompressor *decompressor);
  * This doesn't affect the free() function that will be used to free
  * (de)compressors that were already in existence when this is called.
  */
-void
-deflate_set_memory_allocator(void *(*malloc_func)(int),
-				void (*free_func)(void *));
+void deflate_set_memory_allocator(void *(*malloc_func)(int),
+				  void (*free_func)(void *));
 
 #ifdef __cplusplus
 }

@@ -8,7 +8,7 @@
 #include "lib_common.h"
 
 #ifndef MATCHFINDER_WINDOW_ORDER
-#  error "MATCHFINDER_WINDOW_ORDER must be defined!"
+#error "MATCHFINDER_WINDOW_ORDER must be defined!"
 #endif
 
 /*
@@ -17,8 +17,7 @@
  * bits contain the first 3 bytes, arranged in octets in a platform-dependent
  * order, at the memory location from which the input 32-bit value was loaded.
  */
-static forceinline u32
-loaded_u32_to_u24(u32 v)
+static forceinline u32 loaded_u32_to_u24(u32 v)
 {
 	if (CPU_IS_LITTLE_ENDIAN())
 		return v & 0xFFFFFF;
@@ -31,8 +30,7 @@ loaded_u32_to_u24(u32 v)
  * The order in which the 3 bytes will be arranged as octets in the 24 bits is
  * platform-dependent.  At least 4 bytes (not 3) must be available at @p.
  */
-static forceinline u32
-load_u24_unaligned(const u8 *p)
+static forceinline u32 load_u24_unaligned(const u8 *p)
 {
 #if UNALIGNED_ACCESS_IS_FAST
 	return loaded_u32_to_u24(load_u32_unaligned(p));
@@ -54,20 +52,20 @@ typedef s16 mf_pos_t;
  * Required alignment of the matchfinder buffer pointer and size.  The values
  * here come from the AVX-2 implementation, which is the worst case.
  */
-#define MATCHFINDER_MEM_ALIGNMENT	32
-#define MATCHFINDER_SIZE_ALIGNMENT	128
+#define MATCHFINDER_MEM_ALIGNMENT 32
+#define MATCHFINDER_SIZE_ALIGNMENT 128
 
 #undef matchfinder_init
 #undef matchfinder_rebase
 #ifdef _aligned_attribute
-#  define MATCHFINDER_ALIGNED _aligned_attribute(MATCHFINDER_MEM_ALIGNMENT)
+#define MATCHFINDER_ALIGNED _aligned_attribute(MATCHFINDER_MEM_ALIGNMENT)
 // #  if defined(ARCH_ARM32) || defined(ARCH_ARM64)
 // #    include "arm/matchfinder_impl.h"
 // #  elif defined(ARCH_X86_32) || defined(ARCH_X86_64)
 // #    include "x86/matchfinder_impl.h"
 // #  endif
 #else
-#  define MATCHFINDER_ALIGNED
+#define MATCHFINDER_ALIGNED
 #endif
 
 /*
@@ -79,8 +77,7 @@ typedef s16 mf_pos_t;
  * 'size' must be a multiple of MATCHFINDER_SIZE_ALIGNMENT.
  */
 #ifndef matchfinder_init
-static forceinline void
-matchfinder_init(mf_pos_t *data, size_t size)
+static forceinline void matchfinder_init(mf_pos_t *data, size_t size)
 {
 	size_t num_entries = size / sizeof(*data);
 	size_t i;
@@ -108,8 +105,7 @@ matchfinder_init(mf_pos_t *data, size_t size)
  * must be a multiple of MATCHFINDER_SIZE_ALIGNMENT.
  */
 #ifndef matchfinder_rebase
-static forceinline void
-matchfinder_rebase(mf_pos_t *data, size_t size)
+static forceinline void matchfinder_rebase(mf_pos_t *data, size_t size)
 {
 	size_t num_entries = size / sizeof(*data);
 	size_t i;
@@ -140,8 +136,7 @@ matchfinder_rebase(mf_pos_t *data, size_t size)
  * next-highest @num_bits bits of the product as the hash value, as those have
  * the most randomness.
  */
-static forceinline u32
-lz_hash(u32 seq, unsigned num_bits)
+static forceinline u32 lz_hash(u32 seq, unsigned num_bits)
 {
 	return (u32)(seq * 0x1E35A7BD) >> (32 - num_bits);
 }
@@ -150,29 +145,28 @@ lz_hash(u32 seq, unsigned num_bits)
  * Return the number of bytes at @matchptr that match the bytes at @strptr, up
  * to a maximum of @max_len.  Initially, @start_len bytes are matched.
  */
-static forceinline unsigned
-lz_extend(const u8 * const strptr, const u8 * const matchptr,
-	  const unsigned start_len, const unsigned max_len)
+static forceinline unsigned lz_extend(const u8 *const strptr,
+				      const u8 *const matchptr,
+				      const unsigned start_len,
+				      const unsigned max_len)
 {
 	unsigned len = start_len;
 	machine_word_t v_word;
 
 	if (UNALIGNED_ACCESS_IS_FAST) {
-
 		if (likely(max_len - len >= 4 * WORDBYTES)) {
+#define COMPARE_WORD_STEP                              \
+	v_word = load_word_unaligned(&matchptr[len]) ^ \
+		 load_word_unaligned(&strptr[len]);    \
+	if (v_word != 0)                               \
+		goto word_differs;                     \
+	len += WORDBYTES;
 
-		#define COMPARE_WORD_STEP				\
-			v_word = load_word_unaligned(&matchptr[len]) ^	\
-				 load_word_unaligned(&strptr[len]);	\
-			if (v_word != 0)				\
-				goto word_differs;			\
-			len += WORDBYTES;				\
-
 			COMPARE_WORD_STEP
 			COMPARE_WORD_STEP
 			COMPARE_WORD_STEP
 			COMPARE_WORD_STEP
-		#undef COMPARE_WORD_STEP
+#undef COMPARE_WORD_STEP
 		}
 
 		while (len + WORDBYTES <= max_len) {

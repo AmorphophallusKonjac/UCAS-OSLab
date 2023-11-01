@@ -99,13 +99,12 @@ char *strcat(char *dest, const char *src)
 
 void strrev(char *str)
 {
-    int i, j;
-    int len = strlen(str);
+	int i, j;
+	int len = strlen(str);
 
-    for (i = 0, j = len - 1; i < j; i++, j--)
-    {
-        char tmp = str[i];
-        str[i] = str[j];
-        str[j] = tmp;
-    }
+	for (i = 0, j = len - 1; i < j; i++, j--) {
+		char tmp = str[i];
+		str[i] = str[j];
+		str[j] = tmp;
+	}
 }

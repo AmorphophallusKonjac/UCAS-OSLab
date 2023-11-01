@@ -35,23 +35,22 @@
 
 int main(void)
 {
-    sys_move_cursor(0, SHELL_BEGIN);
-    printf("------------------- COMMAND -------------------\n");
-    printf("> root@UCAS_OS: ");
+	sys_move_cursor(0, SHELL_BEGIN);
+	printf("------------------- COMMAND -------------------\n");
+	printf("> root@UCAS_OS: ");
 
-    while (1)
-    {
-        // TODO [P3-task1]: call syscall to read UART port
-        
-        // TODO [P3-task1]: parse input
-        // note: backspace maybe 8('\b') or 127(delete)
+	while (1) {
+		// TODO [P3-task1]: call syscall to read UART port
 
-        // TODO [P3-task1]: ps, exec, kill, clear    
+		// TODO [P3-task1]: parse input
+		// note: backspace maybe 8('\b') or 127(delete)
 
-        /************************************************************/
-        /* Do not touch this comment. Reserved for future projects. */
-        /************************************************************/    
-    }
+		// TODO [P3-task1]: ps, exec, kill, clear
 
-    return 0;
+		/************************************************************/
+		/* Do not touch this comment. Reserved for future projects. */
+		/************************************************************/
+	}
+
+	return 0;
 }

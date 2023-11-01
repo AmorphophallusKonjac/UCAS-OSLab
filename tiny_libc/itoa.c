@@ -30,7 +30,7 @@
 #include <string.h>
 #include <ctype.h>
 
-int itoa(int num, char* str, int len, int base)
+int itoa(int num, char *str, int len, int base)
 {
 	int sum = num;
 	int i = 0;
@@ -39,8 +39,7 @@ int itoa(int num, char* str, int len, int base)
 	if (len == 0)
 		return -1;
 
-	do
-	{
+	do {
 		digit = sum % base;
 
 		if (digit < 0xA)

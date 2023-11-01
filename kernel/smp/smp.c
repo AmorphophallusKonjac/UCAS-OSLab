@@ -6,20 +6,20 @@
 
 void smp_init()
 {
-    /* TODO: P3-TASK3 multicore*/
+	/* TODO: P3-TASK3 multicore*/
 }
 
 void wakeup_other_hart()
 {
-    /* TODO: P3-TASK3 multicore*/
+	/* TODO: P3-TASK3 multicore*/
 }
 
 void lock_kernel()
 {
-    /* TODO: P3-TASK3 multicore*/
+	/* TODO: P3-TASK3 multicore*/
 }
 
 void unlock_kernel()
 {
-    /* TODO: P3-TASK3 multicore*/
+	/* TODO: P3-TASK3 multicore*/
 }

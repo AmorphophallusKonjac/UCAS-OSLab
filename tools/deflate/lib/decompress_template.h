@@ -32,30 +32,29 @@
  */
 
 #ifndef ATTRIBUTES
-#  define ATTRIBUTES
+#define ATTRIBUTES
 #endif
 #ifndef EXTRACT_VARBITS
-#  define EXTRACT_VARBITS(word, count)	((word) & BITMASK(count))
+#define EXTRACT_VARBITS(word, count) ((word)&BITMASK(count))
 #endif
 #ifndef EXTRACT_VARBITS8
-#  define EXTRACT_VARBITS8(word, count)	((word) & BITMASK((u8)(count)))
+#define EXTRACT_VARBITS8(word, count) ((word)&BITMASK((u8)(count)))
 #endif
 
 static enum libdeflate_result ATTRIBUTES MAYBE_UNUSED
-FUNCNAME(struct libdeflate_decompressor * restrict d,
-	 const void * restrict in, size_t in_nbytes,
-	 void * restrict out, size_t out_nbytes_avail,
+FUNCNAME(struct libdeflate_decompressor *restrict d, const void *restrict in,
+	 size_t in_nbytes, void *restrict out, size_t out_nbytes_avail,
 	 size_t *actual_in_nbytes_ret, size_t *actual_out_nbytes_ret)
 {
 	u8 *out_next = out;
-	u8 * const out_end = out_next + out_nbytes_avail;
-	u8 * const out_fastloop_end =
+	u8 *const out_end = out_next + out_nbytes_avail;
+	u8 *const out_fastloop_end =
 		out_end - MIN(out_nbytes_avail, FASTLOOP_MAX_BYTES_WRITTEN);
 
 	/* Input bitstream state; see deflate_decompress.c for documentation */
 	const u8 *in_next = in;
-	const u8 * const in_end = in_next + in_nbytes;
-	const u8 * const in_fastloop_end =
+	const u8 *const in_end = in_next + in_nbytes;
+	const u8 *const in_fastloop_end =
 		in_end - MIN(in_nbytes, FASTLOOP_MAX_BYTES_READ);
 	bitbuf_t bitbuf = 0;
 	bitbuf_t saved_bitbuf;
@@ -83,13 +82,13 @@ next_block:
 	block_type = (bitbuf >> 1) & BITMASK(2);
 
 	if (block_type == DEFLATE_BLOCKTYPE_DYNAMIC_HUFFMAN) {
-
 		/* Dynamic Huffman block */
 
 		/* The order in which precode lengths are stored */
-		static const u8 deflate_precode_lens_permutation[DEFLATE_NUM_PRECODE_SYMS] = {
-			16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
-		};
+		static const u8 deflate_precode_lens_permutation
+			[DEFLATE_NUM_PRECODE_SYMS] = { 16, 17, 18, 0,  8, 7,  9,
+						       6,  10, 5,  11, 4, 12, 3,
+						       13, 2,  14, 1,  15 };
 
 		unsigned num_explicit_precode_lens;
 		unsigned i;
@@ -123,7 +122,8 @@ next_block:
 			REFILL_BITS();
 			i = 1;
 			do {
-				d->u.precode_lens[deflate_precode_lens_permutation[i]] =
+				d->u.precode_lens
+					[deflate_precode_lens_permutation[i]] =
 					bitbuf & BITMASK(3);
 				bitbuf >>= 3;
 				bitsleft -= 3;
@@ -135,14 +135,16 @@ next_block:
 			do {
 				if ((u8)bitsleft < 3)
 					REFILL_BITS();
-				d->u.precode_lens[deflate_precode_lens_permutation[i]] =
+				d->u.precode_lens
+					[deflate_precode_lens_permutation[i]] =
 					bitbuf & BITMASK(3);
 				bitbuf >>= 3;
 				bitsleft -= 3;
 			} while (++i < num_explicit_precode_lens);
 		}
 		for (; i < DEFLATE_NUM_PRECODE_SYMS; i++)
-			d->u.precode_lens[deflate_precode_lens_permutation[i]] = 0;
+			d->u.precode_lens[deflate_precode_lens_permutation[i]] =
+				0;
 
 		/* Build the decode table for the precode. */
 		SAFETY_CHECK(build_precode_decode_table(d));
@@ -161,13 +163,16 @@ next_block:
 			 * The code below assumes that the precode decode table
 			 * doesn't have any subtables.
 			 */
-			STATIC_ASSERT(PRECODE_TABLEBITS == DEFLATE_MAX_PRE_CODEWORD_LEN);
+			STATIC_ASSERT(PRECODE_TABLEBITS ==
+				      DEFLATE_MAX_PRE_CODEWORD_LEN);
 
 			/* Decode the next precode symbol. */
-			entry = d->u.l.precode_decode_table[
-				bitbuf & BITMASK(DEFLATE_MAX_PRE_CODEWORD_LEN)];
+			entry = d->u.l.precode_decode_table
+					[bitbuf &
+					 BITMASK(DEFLATE_MAX_PRE_CODEWORD_LEN)];
 			bitbuf >>= (u8)entry;
-			bitsleft -= entry; /* optimization: subtract full entry */
+			bitsleft -=
+				entry; /* optimization: subtract full entry */
 			presym = entry >> 16;
 
 			if (presym < 16) {
@@ -328,8 +333,10 @@ next_block:
 
 	/* Decompressing a Huffman block (either dynamic or static) */
 
-	SAFETY_CHECK(build_offset_decode_table(d, num_litlen_syms, num_offset_syms));
-	SAFETY_CHECK(build_litlen_decode_table(d, num_litlen_syms, num_offset_syms));
+	SAFETY_CHECK(
+		build_offset_decode_table(d, num_litlen_syms, num_offset_syms));
+	SAFETY_CHECK(
+		build_litlen_decode_table(d, num_litlen_syms, num_offset_syms));
 have_decode_tables:
 	litlen_tablemask = BITMASK(d->litlen_tablebits);
 
@@ -380,15 +387,17 @@ have_decode_tables:
 			 */
 			if (/* enough bits for 2 fast literals + length + offset preload? */
 			    CAN_CONSUME_AND_THEN_PRELOAD(2 * LITLEN_TABLEBITS +
-							 LENGTH_MAXBITS,
+								 LENGTH_MAXBITS,
 							 OFFSET_TABLEBITS) &&
 			    /* enough bits for 2 fast literals + slow literal + litlen preload? */
-			    CAN_CONSUME_AND_THEN_PRELOAD(2 * LITLEN_TABLEBITS +
-							 DEFLATE_MAX_LITLEN_CODEWORD_LEN,
-							 LITLEN_TABLEBITS)) {
+			    CAN_CONSUME_AND_THEN_PRELOAD(
+				    2 * LITLEN_TABLEBITS +
+					    DEFLATE_MAX_LITLEN_CODEWORD_LEN,
+				    LITLEN_TABLEBITS)) {
 				/* 1st extra fast literal */
 				lit = entry >> 16;
-				entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
+				entry = d->u.litlen_decode_table
+						[bitbuf & litlen_tablemask];
 				saved_bitbuf = bitbuf;
 				bitbuf >>= (u8)entry;
 				bitsleft -= entry;
@@ -396,7 +405,9 @@ have_decode_tables:
 				if (entry & HUFFDEC_LITERAL) {
 					/* 2nd extra fast literal */
 					lit = entry >> 16;
-					entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
+					entry = d->u.litlen_decode_table
+							[bitbuf &
+							 litlen_tablemask];
 					saved_bitbuf = bitbuf;
 					bitbuf >>= (u8)entry;
 					bitsleft -= entry;
@@ -409,7 +420,9 @@ have_decode_tables:
 						 * count as one of the extras.
 						 */
 						lit = entry >> 16;
-						entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
+						entry = d->u.litlen_decode_table
+								[bitbuf &
+								 litlen_tablemask];
 						REFILL_BITS_IN_FASTLOOP();
 						*out_next++ = lit;
 						continue;
@@ -425,9 +438,10 @@ have_decode_tables:
 				 * independently of the refill.
 				 */
 				STATIC_ASSERT(CAN_CONSUME_AND_THEN_PRELOAD(
-						LITLEN_TABLEBITS, LITLEN_TABLEBITS));
+					LITLEN_TABLEBITS, LITLEN_TABLEBITS));
 				lit = entry >> 16;
-				entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
+				entry = d->u.litlen_decode_table
+						[bitbuf & litlen_tablemask];
 				REFILL_BITS_IN_FASTLOOP();
 				*out_next++ = lit;
 				continue;
@@ -450,8 +464,10 @@ have_decode_tables:
 			 * subtable entry.  The subtable entry can be of any
 			 * type: literal, length, or end-of-block.
 			 */
-			entry = d->u.litlen_decode_table[(entry >> 16) +
-				EXTRACT_VARBITS(bitbuf, (entry >> 8) & 0x3F)];
+			entry = d->u.litlen_decode_table
+					[(entry >> 16) +
+					 EXTRACT_VARBITS(bitbuf,
+							 (entry >> 8) & 0x3F)];
 			saved_bitbuf = bitbuf;
 			bitbuf >>= (u8)entry;
 			bitsleft -= entry;
@@ -464,15 +480,17 @@ have_decode_tables:
 			 * entry; or to decode a match length that requires a
 			 * subtable, then preload the offset decode table entry.
 			 */
-			if (!CAN_CONSUME_AND_THEN_PRELOAD(DEFLATE_MAX_LITLEN_CODEWORD_LEN,
-							  LITLEN_TABLEBITS) ||
+			if (!CAN_CONSUME_AND_THEN_PRELOAD(
+				    DEFLATE_MAX_LITLEN_CODEWORD_LEN,
+				    LITLEN_TABLEBITS) ||
 			    !CAN_CONSUME_AND_THEN_PRELOAD(LENGTH_MAXBITS,
 							  OFFSET_TABLEBITS))
 				REFILL_BITS_IN_FASTLOOP();
 			if (entry & HUFFDEC_LITERAL) {
 				/* Decode a literal that required a subtable. */
 				lit = entry >> 16;
-				entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
+				entry = d->u.litlen_decode_table
+						[bitbuf & litlen_tablemask];
 				REFILL_BITS_IN_FASTLOOP();
 				*out_next++ = lit;
 				continue;
@@ -493,7 +511,8 @@ have_decode_tables:
 		 * buffer has enough space remaining to copy a max-length match.
 		 */
 		length = entry >> 16;
-		length += EXTRACT_VARBITS8(saved_bitbuf, entry) >> (u8)(entry >> 8);
+		length += EXTRACT_VARBITS8(saved_bitbuf, entry) >>
+			  (u8)(entry >> 8);
 
 		/*
 		 * Decode the match offset.  There are enough "preloadable" bits
@@ -502,7 +521,8 @@ have_decode_tables:
 		 */
 		STATIC_ASSERT(CAN_CONSUME_AND_THEN_PRELOAD(LENGTH_MAXFASTBITS,
 							   OFFSET_TABLEBITS));
-		entry = d->offset_decode_table[bitbuf & BITMASK(OFFSET_TABLEBITS)];
+		entry = d->offset_decode_table[bitbuf &
+					       BITMASK(OFFSET_TABLEBITS)];
 		if (CAN_CONSUME_AND_THEN_PRELOAD(OFFSET_MAXBITS,
 						 LITLEN_TABLEBITS)) {
 			/*
@@ -512,15 +532,21 @@ have_decode_tables:
 			 */
 			if (unlikely(entry & HUFFDEC_EXCEPTIONAL)) {
 				/* Offset codeword requires a subtable */
-				if (unlikely((u8)bitsleft < OFFSET_MAXBITS +
-					     LITLEN_TABLEBITS - PRELOAD_SLACK))
+				if (unlikely((u8)bitsleft <
+					     OFFSET_MAXBITS + LITLEN_TABLEBITS -
+						     PRELOAD_SLACK))
 					REFILL_BITS_IN_FASTLOOP();
 				bitbuf >>= OFFSET_TABLEBITS;
 				bitsleft -= OFFSET_TABLEBITS;
-				entry = d->offset_decode_table[(entry >> 16) +
-					EXTRACT_VARBITS(bitbuf, (entry >> 8) & 0x3F)];
-			} else if (unlikely((u8)bitsleft < OFFSET_MAXFASTBITS +
-					    LITLEN_TABLEBITS - PRELOAD_SLACK))
+				entry = d->offset_decode_table
+						[(entry >> 16) +
+						 EXTRACT_VARBITS(bitbuf,
+								 (entry >> 8) &
+									 0x3F)];
+			} else if (unlikely((u8)bitsleft <
+					    OFFSET_MAXFASTBITS +
+						    LITLEN_TABLEBITS -
+						    PRELOAD_SLACK))
 				REFILL_BITS_IN_FASTLOOP();
 		} else {
 			/* Decoding a match offset on a 32-bit platform */
@@ -529,12 +555,15 @@ have_decode_tables:
 				/* Offset codeword requires a subtable */
 				bitbuf >>= OFFSET_TABLEBITS;
 				bitsleft -= OFFSET_TABLEBITS;
-				entry = d->offset_decode_table[(entry >> 16) +
-					EXTRACT_VARBITS(bitbuf, (entry >> 8) & 0x3F)];
+				entry = d->offset_decode_table
+						[(entry >> 16) +
+						 EXTRACT_VARBITS(bitbuf,
+								 (entry >> 8) &
+									 0x3F)];
 				REFILL_BITS_IN_FASTLOOP();
 				/* No further refill needed before extra bits */
-				STATIC_ASSERT(CAN_CONSUME(
-					OFFSET_MAXBITS - OFFSET_TABLEBITS));
+				STATIC_ASSERT(CAN_CONSUME(OFFSET_MAXBITS -
+							  OFFSET_TABLEBITS));
 			} else {
 				/* No refill needed before extra bits */
 				STATIC_ASSERT(CAN_CONSUME(OFFSET_MAXFASTBITS));
@@ -544,7 +573,8 @@ have_decode_tables:
 		bitbuf >>= (u8)entry;
 		bitsleft -= entry; /* optimization: subtract full entry */
 		offset = entry >> 16;
-		offset += EXTRACT_VARBITS8(saved_bitbuf, entry) >> (u8)(entry >> 8);
+		offset += EXTRACT_VARBITS8(saved_bitbuf, entry) >>
+			  (u8)(entry >> 8);
 
 		/* Validate the match offset; needed even in the fastloop. */
 		SAFETY_CHECK(offset <= out_next - (const u8 *)out);
@@ -563,9 +593,9 @@ have_decode_tables:
 		 * on 32-bit platforms using the byte-at-a-time refill method.
 		 */
 		if (!CAN_CONSUME_AND_THEN_PRELOAD(
-			MAX(OFFSET_MAXBITS - OFFSET_TABLEBITS,
-			    OFFSET_MAXFASTBITS),
-			LITLEN_TABLEBITS) &&
+			    MAX(OFFSET_MAXBITS - OFFSET_TABLEBITS,
+				OFFSET_MAXFASTBITS),
+			    LITLEN_TABLEBITS) &&
 		    unlikely((u8)bitsleft < LITLEN_TABLEBITS - PRELOAD_SLACK))
 			REFILL_BITS_IN_FASTLOOP();
 		entry = d->u.litlen_decode_table[bitbuf & litlen_tablemask];
@@ -604,19 +634,24 @@ have_decode_tables:
 			src += WORDBYTES;
 			dst += WORDBYTES;
 			while (dst < out_next) {
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += WORDBYTES;
 				dst += WORDBYTES;
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += WORDBYTES;
 				dst += WORDBYTES;
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += WORDBYTES;
 				dst += WORDBYTES;
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += WORDBYTES;
 				dst += WORDBYTES;
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += WORDBYTES;
 				dst += WORDBYTES;
 			}
@@ -654,10 +689,12 @@ have_decode_tables:
 			src += offset;
 			dst += offset;
 			do {
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += offset;
 				dst += offset;
-				store_word_unaligned(load_word_unaligned(src), dst);
+				store_word_unaligned(load_word_unaligned(src),
+						     dst);
 				src += offset;
 				dst += offset;
 			} while (dst < out_next);
@@ -689,8 +726,10 @@ generic_loop:
 		bitbuf >>= (u8)entry;
 		bitsleft -= entry;
 		if (unlikely(entry & HUFFDEC_SUBTABLE_POINTER)) {
-			entry = d->u.litlen_decode_table[(entry >> 16) +
-					EXTRACT_VARBITS(bitbuf, (entry >> 8) & 0x3F)];
+			entry = d->u.litlen_decode_table
+					[(entry >> 16) +
+					 EXTRACT_VARBITS(bitbuf,
+							 (entry >> 8) & 0x3F)];
 			saved_bitbuf = bitbuf;
 			bitbuf >>= (u8)entry;
 			bitsleft -= entry;
@@ -704,18 +743,22 @@ generic_loop:
 		}
 		if (unlikely(entry & HUFFDEC_END_OF_BLOCK))
 			goto block_done;
-		length += EXTRACT_VARBITS8(saved_bitbuf, entry) >> (u8)(entry >> 8);
+		length += EXTRACT_VARBITS8(saved_bitbuf, entry) >>
+			  (u8)(entry >> 8);
 		if (unlikely(length > out_end - out_next))
 			return LIBDEFLATE_INSUFFICIENT_SPACE;
 
 		if (!CAN_CONSUME(LENGTH_MAXBITS + OFFSET_MAXBITS))
 			REFILL_BITS();
-		entry = d->offset_decode_table[bitbuf & BITMASK(OFFSET_TABLEBITS)];
+		entry = d->offset_decode_table[bitbuf &
+					       BITMASK(OFFSET_TABLEBITS)];
 		if (unlikely(entry & HUFFDEC_EXCEPTIONAL)) {
 			bitbuf >>= OFFSET_TABLEBITS;
 			bitsleft -= OFFSET_TABLEBITS;
-			entry = d->offset_decode_table[(entry >> 16) +
-					EXTRACT_VARBITS(bitbuf, (entry >> 8) & 0x3F)];
+			entry = d->offset_decode_table
+					[(entry >> 16) +
+					 EXTRACT_VARBITS(bitbuf,
+							 (entry >> 8) & 0x3F)];
 			if (!CAN_CONSUME(OFFSET_MAXBITS))
 				REFILL_BITS();
 		}

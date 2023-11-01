@@ -12,9 +12,9 @@
 extern "C" {
 #endif
 
-#define LIBDEFLATE_VERSION_MAJOR	1
-#define LIBDEFLATE_VERSION_MINOR	18
-#define LIBDEFLATE_VERSION_STRING	"1.18"
+#define LIBDEFLATE_VERSION_MAJOR 1
+#define LIBDEFLATE_VERSION_MINOR 18
+#define LIBDEFLATE_VERSION_STRING "1.18"
 
 /*
  * Users of libdeflate.dll on Windows can define LIBDEFLATE_DLL to cause
@@ -23,11 +23,11 @@ extern "C" {
  * optimization that is irrelevant for most use cases of libdeflate.
  */
 #ifndef LIBDEFLATEAPI
-#  if defined(LIBDEFLATE_DLL) && (defined(_WIN32) || defined(__CYGWIN__))
-#    define LIBDEFLATEAPI	__declspec(dllimport)
-#  else
-#    define LIBDEFLATEAPI
-#  endif
+#if defined(LIBDEFLATE_DLL) && (defined(_WIN32) || defined(__CYGWIN__))
+#define LIBDEFLATEAPI __declspec(dllimport)
+#else
+#define LIBDEFLATEAPI
+#endif
 #endif
 
 /* ========================================================================== */
@@ -97,10 +97,9 @@ libdeflate_alloc_compressor_ex(int compression_level,
  * To avoid this, either don't write tests like the above, or make sure to
  * include at least 9 bytes of slack space in 'out_nbytes_avail'.
  */
-LIBDEFLATEAPI size_t
-libdeflate_deflate_compress(struct libdeflate_compressor *compressor,
-			    const void *in, size_t in_nbytes,
-			    void *out, size_t out_nbytes_avail);
+LIBDEFLATEAPI size_t libdeflate_deflate_compress(
+	struct libdeflate_compressor *compressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail);
 
 /*
  * libdeflate_deflate_compress_bound() returns a worst-case upper bound on the
@@ -126,45 +125,40 @@ libdeflate_deflate_compress(struct libdeflate_compressor *compressor,
  * libdeflate_deflate_compress() returns 0, indicating that the compressed data
  * did not fit into the provided output buffer.
  */
-LIBDEFLATEAPI size_t
-libdeflate_deflate_compress_bound(struct libdeflate_compressor *compressor,
-				  size_t in_nbytes);
+LIBDEFLATEAPI size_t libdeflate_deflate_compress_bound(
+	struct libdeflate_compressor *compressor, size_t in_nbytes);
 
 /*
  * Like libdeflate_deflate_compress(), but uses the zlib wrapper format instead
  * of raw DEFLATE.
  */
-LIBDEFLATEAPI size_t
-libdeflate_zlib_compress(struct libdeflate_compressor *compressor,
-			 const void *in, size_t in_nbytes,
-			 void *out, size_t out_nbytes_avail);
+LIBDEFLATEAPI size_t libdeflate_zlib_compress(
+	struct libdeflate_compressor *compressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail);
 
 /*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
  * compressed with libdeflate_zlib_compress() rather than with
  * libdeflate_deflate_compress().
  */
-LIBDEFLATEAPI size_t
-libdeflate_zlib_compress_bound(struct libdeflate_compressor *compressor,
-			       size_t in_nbytes);
+LIBDEFLATEAPI size_t libdeflate_zlib_compress_bound(
+	struct libdeflate_compressor *compressor, size_t in_nbytes);
 
 /*
  * Like libdeflate_deflate_compress(), but uses the gzip wrapper format instead
  * of raw DEFLATE.
  */
-LIBDEFLATEAPI size_t
-libdeflate_gzip_compress(struct libdeflate_compressor *compressor,
-			 const void *in, size_t in_nbytes,
-			 void *out, size_t out_nbytes_avail);
+LIBDEFLATEAPI size_t libdeflate_gzip_compress(
+	struct libdeflate_compressor *compressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail);
 
 /*
  * Like libdeflate_deflate_compress_bound(), but assumes the data will be
  * compressed with libdeflate_gzip_compress() rather than with
  * libdeflate_deflate_compress().
  */
-LIBDEFLATEAPI size_t
-libdeflate_gzip_compress_bound(struct libdeflate_compressor *compressor,
-			       size_t in_nbytes);
+LIBDEFLATEAPI size_t libdeflate_gzip_compress_bound(
+	struct libdeflate_compressor *compressor, size_t in_nbytes);
 
 /*
  * libdeflate_free_compressor() frees a compressor that was allocated with
@@ -256,8 +250,8 @@ enum libdeflate_result {
  */
 LIBDEFLATEAPI enum libdeflate_result
 libdeflate_deflate_decompress(struct libdeflate_decompressor *decompressor,
-			      const void *in, size_t in_nbytes,
-			      void *out, size_t out_nbytes_avail,
+			      const void *in, size_t in_nbytes, void *out,
+			      size_t out_nbytes_avail,
 			      size_t *actual_out_nbytes_ret);
 
 /*
@@ -266,12 +260,10 @@ libdeflate_deflate_decompress(struct libdeflate_decompressor *decompressor,
  * then the actual compressed size of the DEFLATE stream (aligned to the next
  * byte boundary) is written to *actual_in_nbytes_ret.
  */
-LIBDEFLATEAPI enum libdeflate_result
-libdeflate_deflate_decompress_ex(struct libdeflate_decompressor *decompressor,
-				 const void *in, size_t in_nbytes,
-				 void *out, size_t out_nbytes_avail,
-				 size_t *actual_in_nbytes_ret,
-				 size_t *actual_out_nbytes_ret);
+LIBDEFLATEAPI enum libdeflate_result libdeflate_deflate_decompress_ex(
+	struct libdeflate_decompressor *decompressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail,
+	size_t *actual_in_nbytes_ret, size_t *actual_out_nbytes_ret);
 
 /*
  * Like libdeflate_deflate_decompress(), but assumes the zlib wrapper format
@@ -283,8 +275,8 @@ libdeflate_deflate_decompress_ex(struct libdeflate_decompressor *decompressor,
  */
 LIBDEFLATEAPI enum libdeflate_result
 libdeflate_zlib_decompress(struct libdeflate_decompressor *decompressor,
-			   const void *in, size_t in_nbytes,
-			   void *out, size_t out_nbytes_avail,
+			   const void *in, size_t in_nbytes, void *out,
+			   size_t out_nbytes_avail,
 			   size_t *actual_out_nbytes_ret);
 
 /*
@@ -294,12 +286,10 @@ libdeflate_zlib_decompress(struct libdeflate_decompressor *decompressor,
  * buffer was decompressed), then the actual number of input bytes consumed is
  * written to *actual_in_nbytes_ret.
  */
-LIBDEFLATEAPI enum libdeflate_result
-libdeflate_zlib_decompress_ex(struct libdeflate_decompressor *decompressor,
-			      const void *in, size_t in_nbytes,
-			      void *out, size_t out_nbytes_avail,
-			      size_t *actual_in_nbytes_ret,
-			      size_t *actual_out_nbytes_ret);
+LIBDEFLATEAPI enum libdeflate_result libdeflate_zlib_decompress_ex(
+	struct libdeflate_decompressor *decompressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail,
+	size_t *actual_in_nbytes_ret, size_t *actual_out_nbytes_ret);
 
 /*
  * Like libdeflate_deflate_decompress(), but assumes the gzip wrapper format
@@ -311,8 +301,8 @@ libdeflate_zlib_decompress_ex(struct libdeflate_decompressor *decompressor,
  */
 LIBDEFLATEAPI enum libdeflate_result
 libdeflate_gzip_decompress(struct libdeflate_decompressor *decompressor,
-			   const void *in, size_t in_nbytes,
-			   void *out, size_t out_nbytes_avail,
+			   const void *in, size_t in_nbytes, void *out,
+			   size_t out_nbytes_avail,
 			   size_t *actual_out_nbytes_ret);
 
 /*
@@ -322,12 +312,10 @@ libdeflate_gzip_decompress(struct libdeflate_decompressor *decompressor,
  * buffer was decompressed), then the actual number of input bytes consumed is
  * written to *actual_in_nbytes_ret.
  */
-LIBDEFLATEAPI enum libdeflate_result
-libdeflate_gzip_decompress_ex(struct libdeflate_decompressor *decompressor,
-			      const void *in, size_t in_nbytes,
-			      void *out, size_t out_nbytes_avail,
-			      size_t *actual_in_nbytes_ret,
-			      size_t *actual_out_nbytes_ret);
+LIBDEFLATEAPI enum libdeflate_result libdeflate_gzip_decompress_ex(
+	struct libdeflate_decompressor *decompressor, const void *in,
+	size_t in_nbytes, void *out, size_t out_nbytes_avail,
+	size_t *actual_in_nbytes_ret, size_t *actual_out_nbytes_ret);
 
 /*
  * libdeflate_free_decompressor() frees a decompressor that was allocated with
@@ -347,9 +335,8 @@ libdeflate_free_decompressor(struct libdeflate_decompressor *decompressor);
  * required initial value for 'adler' is 1.  This value is also returned when
  * 'buffer' is specified as NULL.
  */
-LIBDEFLATEAPI uint32_t
-libdeflate_adler32(uint32_t adler, const void *buffer, size_t len);
-
+LIBDEFLATEAPI uint32_t libdeflate_adler32(uint32_t adler, const void *buffer,
+					  size_t len);
 
 /*
  * libdeflate_crc32() updates a running CRC-32 checksum with 'len' bytes of data
@@ -357,8 +344,8 @@ libdeflate_adler32(uint32_t adler, const void *buffer, size_t len);
  * initial value for 'crc' is 0.  This value is also returned when 'buffer' is
  * specified as NULL.
  */
-LIBDEFLATEAPI uint32_t
-libdeflate_crc32(uint32_t crc, const void *buffer, size_t len);
+LIBDEFLATEAPI uint32_t libdeflate_crc32(uint32_t crc, const void *buffer,
+					size_t len);
 
 /* ========================================================================== */
 /*                           Custom memory allocator                          */
@@ -375,9 +362,8 @@ libdeflate_crc32(uint32_t crc, const void *buffer, size_t len);
  * This doesn't affect the free() function that will be used to free
  * (de)compressors that were already in existence when this is called.
  */
-LIBDEFLATEAPI void
-libdeflate_set_memory_allocator(void *(*malloc_func)(size_t),
-				void (*free_func)(void *));
+LIBDEFLATEAPI void libdeflate_set_memory_allocator(void *(*malloc_func)(size_t),
+						   void (*free_func)(void *));
 
 /*
  * Advanced options.  This is the options structure that
@@ -392,7 +378,6 @@ libdeflate_set_memory_allocator(void *(*malloc_func)(size_t),
  *	// Then set the fields that you need to override the defaults for.
  */
 struct libdeflate_options {
-
 	/*
 	 * This field must be set to the struct size.  This field exists for
 	 * extensibility, so that fields can be appended to this struct in

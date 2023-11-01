@@ -137,8 +137,8 @@ all: dirs format elf image asm # floppy
 dirs:
 	@mkdir -p $(DIR_BUILD)
 
-format: $(SRC_BIOS) $(SRC_DRIVER) $(SRC_INIT) $(SRC_KERNEL) $(SRC_LIBS) $(SRC_LIBC) $(SRC_USER) $(SRC_CREATEIMAGE)
-	clang-format-11 -style=file -i $^
+format:
+	find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
 
 clean:
 	rm -rf $(DIR_BUILD)

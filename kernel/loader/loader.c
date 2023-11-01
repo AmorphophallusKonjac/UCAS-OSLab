@@ -27,7 +27,7 @@ uint64_t load_task_img(int taskid)
 	return tasks[taskid].entrypoint;
 }
 
-int from_name_load_task_img(char *name)
+uint64_t from_name_load_task_img(char *name)
 {
 	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
 		if (strcmp(tasks[taskidx].name, name) == 0) {

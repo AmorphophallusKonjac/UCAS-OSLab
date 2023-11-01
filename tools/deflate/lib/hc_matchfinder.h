@@ -109,15 +109,15 @@
 
 #include "matchfinder_common.h"
 
-#define HC_MATCHFINDER_HASH3_ORDER	15
-#define HC_MATCHFINDER_HASH4_ORDER	16
+#define HC_MATCHFINDER_HASH3_ORDER 15
+#define HC_MATCHFINDER_HASH4_ORDER 16
 
-#define HC_MATCHFINDER_TOTAL_HASH_SIZE			\
-	(((1UL << HC_MATCHFINDER_HASH3_ORDER) +		\
-	  (1UL << HC_MATCHFINDER_HASH4_ORDER)) * sizeof(mf_pos_t))
+#define HC_MATCHFINDER_TOTAL_HASH_SIZE           \
+	(((1UL << HC_MATCHFINDER_HASH3_ORDER) +  \
+	  (1UL << HC_MATCHFINDER_HASH4_ORDER)) * \
+	 sizeof(mf_pos_t))
 
-struct MATCHFINDER_ALIGNED hc_matchfinder  {
-
+struct MATCHFINDER_ALIGNED hc_matchfinder {
 	/* The hash table for finding length 3 matches  */
 	mf_pos_t hash3_tab[1UL << HC_MATCHFINDER_HASH3_ORDER];
 
@@ -131,17 +131,16 @@ struct MATCHFINDER_ALIGNED hc_matchfinder  {
 };
 
 /* Prepare the matchfinder for a new input buffer.  */
-static forceinline void
-hc_matchfinder_init(struct hc_matchfinder *mf)
+static forceinline void hc_matchfinder_init(struct hc_matchfinder *mf)
 {
 	STATIC_ASSERT(HC_MATCHFINDER_TOTAL_HASH_SIZE %
-		      MATCHFINDER_SIZE_ALIGNMENT == 0);
+			      MATCHFINDER_SIZE_ALIGNMENT ==
+		      0);
 
 	matchfinder_init((mf_pos_t *)mf, HC_MATCHFINDER_TOTAL_HASH_SIZE);
 }
 
-static forceinline void
-hc_matchfinder_slide_window(struct hc_matchfinder *mf)
+static forceinline void hc_matchfinder_slide_window(struct hc_matchfinder *mf)
 {
 	STATIC_ASSERT(sizeof(*mf) % MATCHFINDER_SIZE_ALIGNMENT == 0);
 
@@ -179,16 +178,11 @@ hc_matchfinder_slide_window(struct hc_matchfinder *mf)
  * Return the length of the match found, or 'best_len' if no match longer than
  * 'best_len' was found.
  */
-static forceinline u32
-hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
-			     const u8 ** const in_base_p,
-			     const u8 * const in_next,
-			     u32 best_len,
-			     const u32 max_len,
-			     const u32 nice_len,
-			     const u32 max_search_depth,
-			     u32 * const next_hashes,
-			     u32 * const offset_ret)
+static forceinline u32 hc_matchfinder_longest_match(
+	struct hc_matchfinder *const mf, const u8 **const in_base_p,
+	const u8 *const in_next, u32 best_len, const u32 max_len,
+	const u32 nice_len, const u32 max_search_depth, u32 *const next_hashes,
+	u32 *const offset_ret)
 {
 	u32 depth_remaining = max_search_depth;
 	const u8 *best_matchptr = in_next;
@@ -233,12 +227,13 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 
 	/* Compute the next hash codes.  */
 	next_hashseq = get_unaligned_le32(in_next + 1);
-	next_hashes[0] = lz_hash(next_hashseq & 0xFFFFFF, HC_MATCHFINDER_HASH3_ORDER);
+	next_hashes[0] =
+		lz_hash(next_hashseq & 0xFFFFFF, HC_MATCHFINDER_HASH3_ORDER);
 	next_hashes[1] = lz_hash(next_hashseq, HC_MATCHFINDER_HASH4_ORDER);
 	prefetchw(&mf->hash3_tab[next_hashes[0]]);
 	prefetchw(&mf->hash4_tab[next_hashes[1]]);
 
-	if (best_len < 4) {  /* No match of length >= 4 found yet?  */
+	if (best_len < 4) { /* No match of length >= 4 found yet?  */
 
 		/* Check for a length 3 match if needed.  */
 
@@ -249,7 +244,8 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 
 		if (best_len < 3) {
 			matchptr = &in_base[cur_node3];
-			if (load_u24_unaligned(matchptr) == loaded_u32_to_u24(seq4)) {
+			if (load_u24_unaligned(matchptr) ==
+			    loaded_u32_to_u24(seq4)) {
 				best_len = 3;
 				best_matchptr = matchptr;
 			}
@@ -268,7 +264,8 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 				break;
 
 			/* The first 4 bytes did not match.  Keep trying.  */
-			cur_node4 = mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
+			cur_node4 = mf->next_tab[cur_node4 &
+						 (MATCHFINDER_WINDOW_SIZE - 1)];
 			if (cur_node4 <= cutoff || !--depth_remaining)
 				goto out;
 		}
@@ -278,7 +275,8 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 		best_len = lz_extend(in_next, best_matchptr, 4, max_len);
 		if (best_len >= nice_len)
 			goto out;
-		cur_node4 = mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
+		cur_node4 =
+			mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
 		if (cur_node4 <= cutoff || !--depth_remaining)
 			goto out;
 	} else {
@@ -297,27 +295,28 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 			 * the first 4 bytes, or the last byte.  (The last byte,
 			 * the one which would extend the match length by 1, is
 			 * the most important.)  */
-		#if UNALIGNED_ACCESS_IS_FAST
+#if UNALIGNED_ACCESS_IS_FAST
 			if ((load_u32_unaligned(matchptr + best_len - 3) ==
 			     load_u32_unaligned(in_next + best_len - 3)) &&
 			    (load_u32_unaligned(matchptr) ==
 			     load_u32_unaligned(in_next)))
-		#else
+#else
 			if (matchptr[best_len] == in_next[best_len])
-		#endif
+#endif
 				break;
 
 			/* Continue to the next node in the list.  */
-			cur_node4 = mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
+			cur_node4 = mf->next_tab[cur_node4 &
+						 (MATCHFINDER_WINDOW_SIZE - 1)];
 			if (cur_node4 <= cutoff || !--depth_remaining)
 				goto out;
 		}
 
-	#if UNALIGNED_ACCESS_IS_FAST
+#if UNALIGNED_ACCESS_IS_FAST
 		len = 4;
-	#else
+#else
 		len = 0;
-	#endif
+#endif
 		len = lz_extend(in_next, matchptr, len, max_len);
 		if (len > best_len) {
 			/* This is the new longest match.  */
@@ -328,7 +327,8 @@ hc_matchfinder_longest_match(struct hc_matchfinder * const mf,
 		}
 
 		/* Continue to the next node in the list.  */
-		cur_node4 = mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
+		cur_node4 =
+			mf->next_tab[cur_node4 & (MATCHFINDER_WINDOW_SIZE - 1)];
 		if (cur_node4 <= cutoff || !--depth_remaining)
 			goto out;
 	}
@@ -358,12 +358,10 @@ out:
  *	the sequence beginning at @in_next + @count.
  */
 static forceinline void
-hc_matchfinder_skip_bytes(struct hc_matchfinder * const mf,
-			  const u8 ** const in_base_p,
-			  const u8 *in_next,
-			  const u8 * const in_end,
-			  const u32 count,
-			  u32 * const next_hashes)
+hc_matchfinder_skip_bytes(struct hc_matchfinder *const mf,
+			  const u8 **const in_base_p, const u8 *in_next,
+			  const u8 *const in_end, const u32 count,
+			  u32 *const next_hashes)
 {
 	u32 cur_pos;
 	u32 hash3, hash4;
@@ -387,7 +385,8 @@ hc_matchfinder_skip_bytes(struct hc_matchfinder * const mf,
 		mf->hash4_tab[hash4] = cur_pos;
 
 		next_hashseq = get_unaligned_le32(++in_next);
-		hash3 = lz_hash(next_hashseq & 0xFFFFFF, HC_MATCHFINDER_HASH3_ORDER);
+		hash3 = lz_hash(next_hashseq & 0xFFFFFF,
+				HC_MATCHFINDER_HASH3_ORDER);
 		hash4 = lz_hash(next_hashseq, HC_MATCHFINDER_HASH4_ORDER);
 		cur_pos++;
 	} while (--remaining);

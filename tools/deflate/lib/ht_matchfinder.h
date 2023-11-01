@@ -47,41 +47,35 @@
 
 #include "matchfinder_common.h"
 
-#define HT_MATCHFINDER_HASH_ORDER	15
-#define HT_MATCHFINDER_BUCKET_SIZE	2
+#define HT_MATCHFINDER_HASH_ORDER 15
+#define HT_MATCHFINDER_BUCKET_SIZE 2
 
-#define HT_MATCHFINDER_MIN_MATCH_LEN	4
+#define HT_MATCHFINDER_MIN_MATCH_LEN 4
 /* Minimum value of max_len for ht_matchfinder_longest_match() */
-#define HT_MATCHFINDER_REQUIRED_NBYTES	5
+#define HT_MATCHFINDER_REQUIRED_NBYTES 5
 
 struct MATCHFINDER_ALIGNED ht_matchfinder {
 	mf_pos_t hash_tab[1UL << HT_MATCHFINDER_HASH_ORDER]
 			 [HT_MATCHFINDER_BUCKET_SIZE];
 };
 
-static forceinline void
-ht_matchfinder_init(struct ht_matchfinder *mf)
+static forceinline void ht_matchfinder_init(struct ht_matchfinder *mf)
 {
 	STATIC_ASSERT(sizeof(*mf) % MATCHFINDER_SIZE_ALIGNMENT == 0);
 
 	matchfinder_init((mf_pos_t *)mf, sizeof(*mf));
 }
 
-static forceinline void
-ht_matchfinder_slide_window(struct ht_matchfinder *mf)
+static forceinline void ht_matchfinder_slide_window(struct ht_matchfinder *mf)
 {
 	matchfinder_rebase((mf_pos_t *)mf, sizeof(*mf));
 }
 
 /* Note: max_len must be >= HT_MATCHFINDER_REQUIRED_NBYTES */
-static forceinline u32
-ht_matchfinder_longest_match(struct ht_matchfinder * const mf,
-			     const u8 ** const in_base_p,
-			     const u8 * const in_next,
-			     const u32 max_len,
-			     const u32 nice_len,
-			     u32 * const next_hash,
-			     u32 * const offset_ret)
+static forceinline u32 ht_matchfinder_longest_match(
+	struct ht_matchfinder *const mf, const u8 **const in_base_p,
+	const u8 *const in_next, const u32 max_len, const u32 nice_len,
+	u32 *const next_hash, u32 *const offset_ret)
 {
 	u32 best_len = 0;
 	const u8 *best_matchptr = in_next;
@@ -152,7 +146,7 @@ ht_matchfinder_longest_match(struct ht_matchfinder * const mf,
 		matchptr = &in_base[cur_node];
 		if (load_u32_unaligned(matchptr) == seq &&
 		    load_u32_unaligned(matchptr + best_len - 3) ==
-		    load_u32_unaligned(in_next + best_len - 3)) {
+			    load_u32_unaligned(in_next + best_len - 3)) {
 			len = lz_extend(in_next, matchptr, 4, max_len);
 			if (len > best_len) {
 				best_len = len;
@@ -195,12 +189,10 @@ out:
 }
 
 static forceinline void
-ht_matchfinder_skip_bytes(struct ht_matchfinder * const mf,
-			  const u8 ** const in_base_p,
-			  const u8 *in_next,
-			  const u8 * const in_end,
-			  const u32 count,
-			  u32 * const next_hash)
+ht_matchfinder_skip_bytes(struct ht_matchfinder *const mf,
+			  const u8 **const in_base_p, const u8 *in_next,
+			  const u8 *const in_end, const u32 count,
+			  u32 *const next_hash)
 {
 	s32 cur_pos = in_next - *in_base_p;
 	u32 hash;

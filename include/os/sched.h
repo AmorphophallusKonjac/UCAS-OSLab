@@ -35,60 +35,57 @@
 #define NUM_MAX_TASK 16
 
 /* used to save register infomation */
-typedef struct regs_context
-{
-    /* Saved main processor registers.*/
-    reg_t regs[32];
+typedef struct regs_context {
+	/* Saved main processor registers.*/
+	reg_t regs[32];
 
-    /* Saved special registers. */
-    reg_t sstatus;
-    reg_t sepc;
-    reg_t sbadaddr;
-    reg_t scause;
+	/* Saved special registers. */
+	reg_t sstatus;
+	reg_t sepc;
+	reg_t sbadaddr;
+	reg_t scause;
 } regs_context_t;
 
 /* used to save register infomation in switch_to */
-typedef struct switchto_context
-{
-    /* Callee saved registers.*/
-    reg_t regs[14];
+typedef struct switchto_context {
+	/* Callee saved registers.*/
+	reg_t regs[14];
 } switchto_context_t;
 
 typedef enum {
-    TASK_BLOCKED,
-    TASK_RUNNING,
-    TASK_READY,
-    TASK_EXITED,
+	TASK_BLOCKED,
+	TASK_RUNNING,
+	TASK_READY,
+	TASK_EXITED,
 } task_status_t;
 
 /* Process Control Block */
-typedef struct pcb
-{
-    /* register context */
-    // NOTE: this order must be preserved, which is defined in regs.h!!
-    reg_t kernel_sp;
-    reg_t user_sp;
-    ptr_t kernel_stack_base;
-    ptr_t user_stack_base;
+typedef struct pcb {
+	/* register context */
+	// NOTE: this order must be preserved, which is defined in regs.h!!
+	reg_t kernel_sp;
+	reg_t user_sp;
+	ptr_t kernel_stack_base;
+	ptr_t user_stack_base;
 
-    /* previous, next pointer */
-    list_node_t list;
-    list_head wait_list;
+	/* previous, next pointer */
+	list_node_t list;
+	list_head wait_list;
 
-    /* process id */
-    pid_t pid;
-    /* */
-    tid_t tid;
+	/* process id */
+	pid_t pid;
+	/* */
+	tid_t tid;
 
-    /* BLOCK | READY | RUNNING */
-    task_status_t status;
+	/* BLOCK | READY | RUNNING */
+	task_status_t status;
 
-    /* cursor position */
-    int cursor_x;
-    int cursor_y;
+	/* cursor position */
+	int cursor_x;
+	int cursor_y;
 
-    /* time(seconds) to wake up sleeping PCB */
-    uint64_t wakeup_time;
+	/* time(seconds) to wake up sleeping PCB */
+	uint64_t wakeup_time;
 
 } pcb_t, tcb_t;
 
@@ -99,7 +96,7 @@ extern list_head ready_queue;
 extern list_head sleep_queue;
 
 /* current running task PCB */
-extern pcb_t * volatile current_running;
+extern pcb_t *volatile current_running;
 extern pid_t process_id;
 extern tid_t thread_id;
 
@@ -116,12 +113,13 @@ void do_block(list_node_t *, list_head *queue);
 void do_unblock(list_node_t *);
 
 // [p2-task1]
-#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr) - 16))
+#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-16))
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/
 #ifdef S_CORE
-extern pid_t do_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2);
+extern pid_t do_exec(int id, int argc, uint64_t arg0, uint64_t arg1,
+		     uint64_t arg2);
 #else
 extern pid_t do_exec(char *name, int argc, char *argv[]);
 #endif
