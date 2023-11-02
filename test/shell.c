@@ -152,7 +152,7 @@ void clientEntrypoint(char *arg)
 		printf("Error: Unknown Command %s!\n", argv[0]);
 		return;
 	}
-	command[commandId].parser(&argc, argv);
+	command[commandId].parser(argc, argv);
 }
 
 void initSyscall()

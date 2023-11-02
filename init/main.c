@@ -83,6 +83,7 @@ static void init_tasks()
 	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
 		load_task_img(taskidx);
 	}
+	return;
 }
 
 /************************************************************/
@@ -241,7 +242,6 @@ int main(void)
 
 	// Load all tasks
 	init_tasks();
-	printk("> [INIT] Tasks Load succeeded.\n");
 
 	// Init Process Control Blocks |•'-'•) ✧
 	init_pcb();
