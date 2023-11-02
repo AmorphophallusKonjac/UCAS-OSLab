@@ -17,7 +17,7 @@ char old_screen[SCREEN_HEIGHT * SCREEN_WIDTH] = { 0 };
 static void vt100_move_cursor(int x, int y)
 {
 	// \033[y;xH
-	printv("%c[%d;%dH", 27, y, x);
+	printv("%c[%d;%dH", 27, y + 1, x + 1);
 }
 
 /* clear screen */
@@ -32,6 +32,13 @@ static void vt100_hidden_cursor()
 {
 	// \033[?25l
 	printv("%c[?25l", 27);
+}
+
+/* show cursor */
+static void vt100_show_cursor()
+{
+	//\033[?25h
+	printv("%c[?25h", 27);
 }
 
 /* write a char */
@@ -100,7 +107,7 @@ void screen_reflush(void)
 			/* We only print the data of the modified location. */
 			if (new_screen[SCREEN_LOC(j, i)] !=
 			    old_screen[SCREEN_LOC(j, i)]) {
-				vt100_move_cursor(j + 1, i + 1);
+				vt100_move_cursor(j, i);
 				bios_putchar(new_screen[SCREEN_LOC(j, i)]);
 				old_screen[SCREEN_LOC(j, i)] =
 					new_screen[SCREEN_LOC(j, i)];
