@@ -1,6 +1,7 @@
 #ifndef STRING_H_
 #define STRING_H_
 
+#include <stddef.h>
 #include <stdint.h>
 
 void memcpy(uint8_t *dest, const uint8_t *src, uint32_t len);
@@ -13,5 +14,6 @@ char *strncpy(char *dest, const char *src, int n);
 char *strcat(char *dest, const char *src);
 int strlen(const char *src);
 void strrev(char *str);
+char *strtok(char *str, const char *delimiters);
 
 #endif

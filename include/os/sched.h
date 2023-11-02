@@ -1,10 +1,11 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
- *            Copyright (C) 2018 Institute of Computing Technology, CAS
- *               Author : Han Shukai (email : hanshukai@ict.ac.cn)
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
- *        Process scheduling related content, such as: scheduler, process blocking,
- *                 process wakeup, process creation, process kill, etc.
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * * Copyright (C) 2018 Institute of Computing Technology, CAS Author :
+ * Han Shukai (email : hanshukai@ict.ac.cn)
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * * Process scheduling related content, such as: scheduler, process
+ * blocking, process wakeup, process creation, process kill, etc.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * *
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,13 +25,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * */
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * */
 
 #ifndef INCLUDE_SCHEDULER_H_
 #define INCLUDE_SCHEDULER_H_
 
-#include <type.h>
 #include <os/list.h>
+#include <type.h>
 
 #define NUM_MAX_TASK 16
 
@@ -113,7 +115,7 @@ void do_block(list_node_t *, list_head *queue);
 void do_unblock(list_node_t *);
 
 // [p2-task1]
-#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-16))
+#define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-32))
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/

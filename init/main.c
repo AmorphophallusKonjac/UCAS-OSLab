@@ -78,6 +78,13 @@ static void init_task_info(void)
 	       taskinfo_size);
 }
 
+static void init_tasks()
+{
+	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
+		load_task_img(taskidx);
+	}
+}
+
 /************************************************************/
 static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 			   ptr_t entry_point, ptr_t arg, pcb_t *pcb)
@@ -122,28 +129,30 @@ static void init_pcb(void)
 {
 	/* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
 	char needed_task_name[][32] = { "shell" };
-	// char needed_task_name[][32] = {"pthread", "fly"};
 
-	for (int i = 1; i <= sizeof(needed_task_name) / 32; i++) {
+	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		pcb[i].kernel_stack_base = allocKernelPage(STACK_PAGE_NUM) +
+					   STACK_PAGE_NUM * PAGE_SIZE;
+		pcb[i].user_stack_base = allocUserPage(STACK_PAGE_NUM) +
+					 STACK_PAGE_NUM * PAGE_SIZE;
+		pcb[i].status = TASK_EXITED;
+	}
+
+	for (int i = 0; i < sizeof(needed_task_name) / 32; i++) {
 		pcb[i].pid = process_id++;
 		pcb[i].status = TASK_READY;
 		pcb[i].cursor_x = 0;
 		pcb[i].cursor_y = 0;
 		pcb[i].wakeup_time = 0;
-		init_pcb_stack(allocKernelPage(STACK_PAGE_NUM) +
-				       STACK_PAGE_NUM * PAGE_SIZE,
-			       allocUserPage(STACK_PAGE_NUM) +
-				       STACK_PAGE_NUM * PAGE_SIZE,
-			       from_name_load_task_img(needed_task_name[i - 1]),
-			       0, pcb + i);
+		init_pcb_stack(pcb[i].kernel_stack_base, pcb[i].user_stack_base,
+			       getEntrypoint(needed_task_name[i]), 0, pcb + i);
 		list_push(&ready_queue, &pcb[i].list);
 	}
-	pcb[0] = pid0_pcb;
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
-	current_running = pcb + 0;
+	current_running = &pid0_pcb;
 	current_running->status =
-		TASK_BLOCKED; // to stop pcb0 from being pushed into ready_queue
+		TASK_EXITED; // to stop pcb0 from being pushed into ready_queue
 	asm volatile("mv tp, %0;"
 		     :
 		     : "r"(current_running)); // set tp = current_running
@@ -178,7 +187,13 @@ static int thread_create(int *tidptr, long func, void *arg)
 static void init_syscall(void)
 {
 	// TODO: [p2-task3] initialize system call table.
+	syscall[SYSCALL_EXEC] = (long (*)())do_exec;
+	syscall[SYSCALL_EXIT] = (long (*)())do_exit;
 	syscall[SYSCALL_SLEEP] = (long (*)())do_sleep;
+	syscall[SYSCALL_KILL] = (long (*)())do_kill;
+	syscall[SYSCALL_WAITPID] = (long (*)())do_waitpid;
+	syscall[SYSCALL_PS] = (long (*)())do_process_show;
+	syscall[SYSCALL_GETPID] = (long (*)())do_getpid;
 	syscall[SYSCALL_YIELD] = (long (*)())do_scheduler;
 	syscall[SYSCALL_WRITE] = (long (*)())screen_write;
 	syscall[SYSCALL_CURSOR] = (long (*)())screen_move_cursor;
@@ -191,6 +206,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
 	syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_scheduler;
+	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
+	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;
 }
 /************************************************************/
 
@@ -221,6 +238,11 @@ int main(void)
 
 	bios_putstr("Hello OS!\n\r");
 	bios_putstr(buf);
+
+	// Load all tasks
+	init_tasks();
+	printk("> [INIT] Tasks Load succeeded.\n");
+
 	// Init Process Control Blocks |•'-'•) ✧
 	init_pcb();
 	printk("> [INIT] PCB initialization succeeded.\n");

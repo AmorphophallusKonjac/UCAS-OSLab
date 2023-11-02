@@ -27,6 +27,16 @@ uint64_t load_task_img(int taskid)
 	return tasks[taskid].entrypoint;
 }
 
+uint64_t getEntrypoint(char *name)
+{
+	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
+		if (strcmp(tasks[taskidx].name, name) == 0) {
+			return tasks[taskidx].entrypoint;
+		}
+	}
+	return 0;
+}
+
 uint64_t from_name_load_task_img(char *name)
 {
 	for (int taskidx = 0; taskidx < task_num; ++taskidx) {

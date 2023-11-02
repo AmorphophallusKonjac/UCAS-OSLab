@@ -108,3 +108,37 @@ void strrev(char *str)
 		str[j] = tmp;
 	}
 }
+
+char *strtok(char *str, const char *delimiters)
+{
+	static char *lastToken = NULL;
+	char *token = NULL;
+
+	if (str != NULL) {
+		lastToken = str;
+	} else {
+		if (lastToken == NULL) {
+			return NULL;
+		}
+	}
+
+	while (*lastToken != '\0' && *lastToken == *delimiters) {
+		++lastToken;
+	}
+	if (*lastToken == '\0') {
+		lastToken = NULL;
+		return NULL;
+	}
+
+	token = lastToken;
+	while (*lastToken != '\0' && *lastToken != *delimiters) {
+		++lastToken;
+	}
+	if (*lastToken == '\0') {
+		lastToken = NULL;
+	} else {
+		*lastToken = '\0';
+		++lastToken;
+	}
+	return token;
+}

@@ -132,7 +132,7 @@ ELF_DECOMPRESS	= $(DIR_BUILD)/decompress
 # Top-level Rules
 # -----------------------------------------------------------------------
 
-all: dirs format elf image asm # floppy
+all: dirs elf image asm # floppy
 
 dirs:
 	@mkdir -p $(DIR_BUILD)

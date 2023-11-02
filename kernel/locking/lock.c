@@ -59,6 +59,7 @@ int do_mutex_lock_init(int key)
 	mlocks[ret].block_queue.prev = &mlocks[ret].block_queue;
 	mlocks[ret].key = key;
 	mlocks[ret].lock.status = UNLOCKED;
+	mlocks[ret].pid = 0;
 	return ret;
 }
 
@@ -73,6 +74,7 @@ void do_mutex_lock_acquire(int mlock_idx)
 		}
 		do_scheduler();
 	}
+	mlocks[mlock_idx].pid = current_running->pid;
 	mlocks[mlock_idx].lock.status = LOCKED;
 }
 
@@ -80,9 +82,19 @@ void do_mutex_lock_release(int mlock_idx)
 {
 	/* TODO: [p2-task2] release mutex lock */
 	mlocks[mlock_idx].lock.status = UNLOCKED;
+	mlocks[mlock_idx].pid = 0;
 	if (list_empty(&mlocks[mlock_idx].block_queue))
 		return;
 	while (!list_empty(&mlocks[mlock_idx].block_queue)) {
 		do_unblock(list_front(&mlocks[mlock_idx].block_queue));
+	}
+}
+
+void do_pid_lock_release(int pid)
+{
+	for (int i = 0; i < LOCK_NUM; ++i) {
+		if (mlocks[i].pid == pid) {
+			do_mutex_lock_release(i);
+		}
 	}
 }

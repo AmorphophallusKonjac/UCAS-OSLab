@@ -44,4 +44,7 @@
 #define SYSCALL_THREAD_CREATE 81
 #define SYSCALL_THREAD_YIELD 82
 
+// [p3-task1]
+#define SYSCALL_BACKSPACE 83
+
 #endif

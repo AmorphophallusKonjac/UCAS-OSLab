@@ -33,15 +33,177 @@
 
 #define SHELL_BEGIN 20
 
+#define BUF_SIZE 512
+
+#define SYSCALL_NUM 96
+
+struct pair {
+	char name[32];
+	long (*parser)();
+} command[SYSCALL_NUM];
+
+void execParser(int argc, char **argv)
+{
+	int needWait = 1;
+	int pid = 0;
+	if (strcmp(argv[argc - 1], "&") == 0) {
+		needWait = 0;
+		--argc;
+	}
+#ifdef S_CORE
+	// if (argc == 1) {
+	// 	printf("Error: Miss Program ID\n");
+	// 	return;
+	// }
+	// sys_call();
+#else
+	if (argc == 1) {
+		printf("Error: Miss Task Name!\n");
+		return;
+	}
+	pid = sys_exec(argv[1], argc - 1, argv + 1);
+#endif
+	if (!pid) {
+		printf("Info: execute %s failed.\n", argv[1]);
+		return;
+	} else {
+		printf("Info: execute %s successfully, pid = %d ...\n", argv[1],
+		       pid);
+	}
+	if (needWait) {
+		sys_waitpid(pid);
+	}
+}
+
+pid_t atoi(char *st)
+{
+	pid_t ret = 0;
+	for (int i = 0; st[i]; ++i) {
+		if (isdigit(st[i])) {
+			ret = ret * 10 + st[i] - '0';
+		} else {
+			return -1;
+		}
+	}
+	return ret;
+}
+
+void killParser(int argc, char **argv)
+{
+	if (argc > 2) {
+		printf("Error: Too many arguments!\n");
+		return;
+	}
+	if (argc < 2) {
+		printf("Error: Miss pid!\n");
+		return;
+	}
+	pid_t pid = atoi(argv[1]);
+	if (pid == -1) {
+		printf("Error: Unknown pid %s!\n", argv[1]);
+		return;
+	}
+	sys_kill(pid);
+}
+
+void psParser(int argc, char **argv)
+{
+	if (argc > 1) {
+		printf("Error: Too many arguments!\n");
+		return;
+	}
+	sys_ps();
+}
+
+void parseArg(char *arg, int *argc, char **argv)
+{
+	*argc = 0;
+	argv[*argc] = strtok(arg, " ");
+	if (argv[*argc] == NULL) {
+		return;
+	} else {
+		*argc = 1;
+	}
+	while ((argv[*argc] = strtok(NULL, " ")) != NULL) {
+		*argc = *argc + 1;
+	}
+}
+
+int getCommandId(char *action)
+{
+	int ret = -1;
+	for (int i = 0; i < SYSCALL_NUM; ++i) {
+		if (strcmp(action, command[i].name) == 0) {
+			return i;
+		}
+	}
+	return ret;
+}
+
+void clientEntrypoint(char *arg)
+{
+	int argc = 0;
+	char *argv[BUF_SIZE];
+	int commandId;
+	parseArg(arg, &argc, argv);
+	if (!argc)
+		return;
+	if ((commandId = getCommandId(argv[0])) == -1) {
+		printf("Error: Unknown Command %s!\n", argv[0]);
+		return;
+	}
+	command[commandId].parser(&argc, argv);
+}
+
+void initSyscall()
+{
+	strcpy(command[0].name, "exec");
+	command[0].parser = (long (*)())execParser;
+	strcpy(command[1].name, "kill");
+	command[1].parser = (long (*)())killParser;
+	strcpy(command[2].name, "ps");
+	command[2].parser = (long (*)())psParser;
+}
+
 int main(void)
 {
+	initSyscall();
+	char buf[BUF_SIZE + 1];
+	int ch;
+	int len = 0;
 	sys_move_cursor(0, SHELL_BEGIN);
 	printf("------------------- COMMAND -------------------\n");
-	printf("> root@UCAS_OS: ");
+	printf("> root@UCAS_OS# ");
 
 	while (1) {
 		// TODO [P3-task1]: call syscall to read UART port
-
+		ch = sys_getchar();
+		if (ch == -1)
+			continue;
+		if (ch == '\r') {
+			printf("\n");
+			clientEntrypoint(buf);
+			len = 0;
+			buf[len] = '\0';
+			printf("> root@UCAS_OS# ");
+		} else {
+			if (ch == 8 || ch == 127) {
+				if (len) {
+					sys_backspace();
+					buf[--len] = '\0';
+				}
+			} else {
+				if (len == BUF_SIZE) {
+					printf("\nError: command too long!\n> root@UCAS_OS# ");
+					len = 0;
+					buf[len] = '\0';
+					continue;
+				}
+				buf[len++] = ch;
+				buf[len] = '\0';
+				printf("%c", ch);
+			}
+		}
 		// TODO [P3-task1]: parse input
 		// note: backspace maybe 8('\b') or 127(delete)
 
