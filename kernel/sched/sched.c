@@ -202,7 +202,7 @@ pid_t do_getpid()
 	return current_running->pid;
 }
 
-void exit(void)
+void do_exit(void)
 {
 	while (!list_empty(&current_running->wait_list)) {
 		do_unblock(&current_running->wait_list);
