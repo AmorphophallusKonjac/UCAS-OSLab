@@ -101,6 +101,7 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 		pt_regs->regs[i] = 0;
 	pt_regs->regs[2] = (reg_t)user_stack; // sp
 	pt_regs->regs[4] = (reg_t)pcb; // tp
+	pt_regs->regs[1] = (reg_t)(entry_point + 2); // ra
 	pt_regs->regs[10] = (reg_t)arg; // a0
 	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
 	pt_regs->sstatus = (reg_t)SR_SPIE & ~SR_SPP;
@@ -137,6 +138,10 @@ static void init_pcb(void)
 		pcb[i].user_stack_base = allocUserPage(STACK_PAGE_NUM) +
 					 STACK_PAGE_NUM * PAGE_SIZE;
 		pcb[i].status = TASK_EXITED;
+		pcb[i].list.next = &pcb[i].list;
+		pcb[i].list.prev = &pcb[i].list;
+		pcb[i].wait_list.next = &pcb[i].wait_list;
+		pcb[i].wait_list.prev = &pcb[i].wait_list;
 	}
 
 	for (int i = 0; i < sizeof(needed_task_name) / 32; i++) {
@@ -204,11 +209,13 @@ static void init_syscall(void)
 	syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
 	syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
 	syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
+
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
 	syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_scheduler;
 	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
 	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;
+	syscall[SYSCALL_SCREEN_CLEAR] = (long (*)())screen_clear;
 }
 /************************************************************/
 

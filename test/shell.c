@@ -42,6 +42,8 @@ struct pair {
 	long (*parser)();
 } command[SYSCALL_NUM];
 
+/*****************************************************************************************/
+
 void execParser(int argc, char **argv)
 {
 	int needWait = 1;
@@ -90,10 +92,6 @@ pid_t atoi(char *st)
 
 void killParser(int argc, char **argv)
 {
-	if (argc > 2) {
-		printf("Error: Too many arguments!\n");
-		return;
-	}
 	if (argc < 2) {
 		printf("Error: Miss pid!\n");
 		return;
@@ -105,6 +103,15 @@ void killParser(int argc, char **argv)
 	}
 	sys_kill(pid);
 }
+
+void clearParser(int argc, char **argv)
+{
+	sys_screen_clear();
+	sys_move_cursor(0, SHELL_BEGIN);
+	printf("------------------- COMMAND -------------------\n");
+}
+
+/*****************************************************************************************/
 
 void psParser(int argc, char **argv)
 {
@@ -159,10 +166,15 @@ void initSyscall()
 {
 	strcpy(command[0].name, "exec");
 	command[0].parser = (long (*)())execParser;
+
 	strcpy(command[1].name, "kill");
 	command[1].parser = (long (*)())killParser;
+
 	strcpy(command[2].name, "ps");
 	command[2].parser = (long (*)())psParser;
+
+	strcpy(command[3].name, "clear");
+	command[3].parser = (long (*)())clearParser;
 }
 
 int main(void)

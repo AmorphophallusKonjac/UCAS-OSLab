@@ -111,6 +111,7 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 		pt_regs->regs[i] = 0;
 	pt_regs->regs[2] = (reg_t)pcb->user_sp; // sp
 	pt_regs->regs[4] = (reg_t)pcb; // tp
+	pt_regs->regs[1] = (reg_t)(entry_point + 2);
 	pt_regs->regs[10] = (reg_t)argc;
 	pt_regs->regs[11] = (reg_t)argvStack;
 	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
@@ -166,6 +167,7 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	pcb[pcbidx].tid = 0;
 	pcb[pcbidx].wakeup_time = 0;
 	list_push(&ready_queue, &pcb[pcbidx].list);
+	return pcb[pcbidx].pid;
 }
 #endif
 
@@ -205,7 +207,7 @@ pid_t do_getpid()
 void do_exit(void)
 {
 	while (!list_empty(&current_running->wait_list)) {
-		do_unblock(&current_running->wait_list);
+		do_unblock(list_front(&current_running->wait_list));
 	}
 	list_del(&current_running->list);
 	do_pid_lock_release(current_running->pid);
@@ -241,7 +243,7 @@ void do_process_show()
 {
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
 		if (pcb[i].status != TASK_EXITED) {
-			printk("[%d] PID : %d\tSTATUS : ", i, pcb[i].pid);
+			printk("[%d] PID : %d   STATUS : ", i, pcb[i].pid);
 			switch (pcb[i].status) {
 			case TASK_READY:
 				printk("READY\n");

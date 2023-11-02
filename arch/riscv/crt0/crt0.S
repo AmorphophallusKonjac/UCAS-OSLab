@@ -2,7 +2,16 @@
 
 .section ".entry_function","ax"
 ENTRY(_start)
-
+    j exec
+exit:
+    li a7, 1
+    li a0, 0
+    li a1, 0
+    li a2, 0
+    li a3, 0
+    li a4, 0
+    ecall
+exec:
     /* TODO: [p1-task3] setup C runtime environment for the user program */
 
     // clear bss

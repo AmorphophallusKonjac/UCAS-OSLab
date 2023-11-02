@@ -18,6 +18,7 @@ void sys_bios_logging(char *buff);
 int sys_thread_create(int *tidptr, long func, void *arg);
 void sys_thread_yield(void);
 void sys_backspace(void);
+void sys_screen_clear(void);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */
