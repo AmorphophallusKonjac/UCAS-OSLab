@@ -32,6 +32,7 @@ int main(int argc, char *argv[])
 
 		sys_sleep(next);
 	}
+	sys_move_cursor(0, print_location);
 	printf("> [TASK] Total produced 10 products.                          ");
 
 	return 0;

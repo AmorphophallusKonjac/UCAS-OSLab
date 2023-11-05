@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 	int i;
 	int sum_consumption = 0;
 
+	sys_move_cursor(0, print_location);
 	printf("> [TASK] (pid=%d) Total consumed 0 products.", sys_getpid());
 	for (i = 0; i < 15; i++) {
 		sys_move_cursor(0, print_location);

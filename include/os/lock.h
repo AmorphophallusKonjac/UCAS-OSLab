@@ -89,6 +89,9 @@ void do_condition_destroy(int cond_idx);
 
 typedef struct semaphore {
   // TODO [P3-TASK2 semaphore]
+  int key, value;
+  mutex_lock_t mutex;
+  list_head wait_list;
 } semaphore_t;
 
 #define SEMAPHORE_NUM 16

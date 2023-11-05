@@ -33,6 +33,7 @@ pid_t thread_id = 1;
 void do_scheduler(void)
 {
 	// TODO: [p2-task3] Check sleep queue to wake up PCBs
+begin:
 	check_sleeping();
 	/************************************************************/
 	/* Do not touch this comment. Reserved for future projects. */
@@ -46,8 +47,7 @@ void do_scheduler(void)
 	}
 
 	if (list_empty(&ready_queue)) {
-		do_scheduler(); // nothing to do
-		return;
+		goto begin; // do nothing
 	}
 	current_running = NODE2PCB(list_front(&ready_queue));
 	current_running->status = TASK_RUNNING;

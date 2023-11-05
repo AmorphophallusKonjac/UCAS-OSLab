@@ -136,6 +136,18 @@ void sys_screen_clear(void)
 		       IGNORE);
 }
 
+void sys_show_cursor(void)
+{
+	invoke_syscall(SYSCALL_SHOW_CURSOR, IGNORE, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
+}
+
+void sys_hidden_cursor(void)
+{
+	invoke_syscall(SYSCALL_HIDDEN_CURSOR, IGNORE, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
+}
+
 /************************************************************/
 #ifdef S_CORE
 pid_t sys_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2)
@@ -234,21 +246,29 @@ void sys_condition_destroy(int cond_idx)
 int sys_semaphore_init(int key, int init)
 {
 	/* TODO: [p3-task2] call invoke_syscall to implement sys_semaphore_init */
+	return invoke_syscall(SYSCALL_SEMA_INIT, key, init, IGNORE, IGNORE,
+			      IGNORE);
 }
 
 void sys_semaphore_up(int sema_idx)
 {
 	/* TODO: [p3-task2] call invoke_syscall to implement sys_semaphore_up */
+	invoke_syscall(SYSCALL_SEMA_UP, sema_idx, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
 }
 
 void sys_semaphore_down(int sema_idx)
 {
 	/* TODO: [p3-task2] call invoke_syscall to implement sys_semaphore_down */
+	invoke_syscall(SYSCALL_SEMA_DOWN, sema_idx, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
 }
 
 void sys_semaphore_destroy(int sema_idx)
 {
 	/* TODO: [p3-task2] call invoke_syscall to implement sys_semaphore_destroy */
+	invoke_syscall(SYSCALL_SEMA_DESTROY, sema_idx, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
 }
 
 int sys_mbox_open(char *name)

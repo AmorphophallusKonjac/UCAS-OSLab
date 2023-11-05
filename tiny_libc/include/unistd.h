@@ -19,6 +19,8 @@ int sys_thread_create(int *tidptr, long func, void *arg);
 void sys_thread_yield(void);
 void sys_backspace(void);
 void sys_screen_clear(void);
+void sys_hidden_cursor(void);
+void sys_show_cursor(void);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */
@@ -48,6 +50,12 @@ void sys_condition_wait(int cond_idx, int mutex_idx);
 void sys_condition_signal(int cond_idx);
 void sys_condition_broadcast(int cond_idx);
 void sys_condition_destroy(int cond_idx);
+
+/* TODO: [P3 task2] semaphore */
+int sys_semaphore_init(int key, int init);
+void sys_semaphore_up(int sema_idx);
+void sys_semaphore_down(int sema_idx);
+void sys_semaphore_destroy(int sema_idx);
 
 /* TODO: [P3 task2] mailbox */
 int sys_mbox_open(char *name);

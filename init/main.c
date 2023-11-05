@@ -201,14 +201,20 @@ static void init_syscall(void)
 	syscall[SYSCALL_PS] = (long (*)())do_process_show;
 	syscall[SYSCALL_GETPID] = (long (*)())do_getpid;
 	syscall[SYSCALL_YIELD] = (long (*)())do_scheduler;
+
 	syscall[SYSCALL_WRITE] = (long (*)())screen_write;
 	syscall[SYSCALL_CURSOR] = (long (*)())screen_move_cursor;
 	syscall[SYSCALL_REFLUSH] = (long (*)())screen_reflush;
+
 	syscall[SYSCALL_GET_TIMEBASE] = (long (*)())get_time_base;
 	syscall[SYSCALL_GET_TICK] = (long (*)())get_ticks;
 	syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
 	syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
 	syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
+	syscall[SYSCALL_SEMA_INIT] = (long (*)())do_semaphore_init;
+	syscall[SYSCALL_SEMA_UP] = (long (*)())do_semaphore_up;
+	syscall[SYSCALL_SEMA_DOWN] = (long (*)())do_semaphore_down;
+	syscall[SYSCALL_SEMA_DESTROY] = (long (*)())do_semaphore_destroy;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
@@ -216,6 +222,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
 	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;
 	syscall[SYSCALL_SCREEN_CLEAR] = (long (*)())screen_clear;
+	syscall[SYSCALL_HIDDEN_CURSOR] = (long (*)())screen_hidden_cursor;
+	syscall[SYSCALL_SHOW_CURSOR] = (long (*)())screen_show_cursor;
 }
 /************************************************************/
 
@@ -261,6 +269,9 @@ int main(void)
 	init_locks();
 	printk("> [INIT] Lock mechanism initialization succeeded.\n");
 
+	// Init semaphores mechanism o(´^｀)o
+	init_semaphores();
+	printk("> [INIT] semaphores mechanism initialization succeeded.\n");
 	// Init interrupt (^_^)
 	init_exception();
 	printk("> [INIT] Interrupt processing initialization succeeded.\n");

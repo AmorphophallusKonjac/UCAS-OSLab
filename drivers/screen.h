@@ -49,4 +49,10 @@ void screen_move_cursor(int x, int y);
 /* [p3-task1] print backspace on screen */
 void screen_backspace(void);
 
+/* [p3-task1] hidden cursor */
+void screen_hidden_cursor(void);
+
+/* [p3-task1] show cursor */
+void screen_show_cursor(void);
+
 #endif

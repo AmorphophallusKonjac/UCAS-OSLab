@@ -47,5 +47,7 @@
 // [p3-task1]
 #define SYSCALL_BACKSPACE 83
 #define SYSCALL_SCREEN_CLEAR 84
+#define SYSCALL_HIDDEN_CURSOR 85
+#define SYSCALL_SHOW_CURSOR 86
 
 #endif

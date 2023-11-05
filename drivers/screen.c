@@ -130,3 +130,13 @@ void screen_backspace(void)
 	vt100_move_cursor(--current_running->cursor_x,
 			  current_running->cursor_y);
 }
+
+void screen_hidden_cursor(void)
+{
+	vt100_hidden_cursor();
+}
+
+void screen_show_cursor(void)
+{
+	vt100_show_cursor();
+}
