@@ -67,31 +67,26 @@ int do_mutex_lock_init(int key)
 void do_mutex_lock_acquire(int mlock_idx)
 {
 	/* TODO: [p2-task2] acquire mutex lock */
-	while (mlocks[mlock_idx].lock.status == LOCKED) {
-		if (current_running->status != TASK_BLOCKED) {
-			current_running->status = TASK_BLOCKED;
-			do_block(&current_running->list,
-				 &mlocks[mlock_idx].block_queue);
-		}
+	while (atomic_swap(LOCKED, (ptr_t)&mlocks[mlock_idx].lock.status) ==
+	       LOCKED) {
+		do_block(&current_running->list,
+			 &mlocks[mlock_idx].block_queue);
 		do_scheduler();
 	}
 	mlocks[mlock_idx].pid = current_running->pid;
-	mlocks[mlock_idx].lock.status = LOCKED;
 }
 
 void do_mutex_lock_release(int mlock_idx)
 {
 	/* TODO: [p2-task2] release mutex lock */
-	mlocks[mlock_idx].lock.status = UNLOCKED;
 	mlocks[mlock_idx].pid = 0;
-	if (list_empty(&mlocks[mlock_idx].block_queue))
-		return;
 	while (!list_empty(&mlocks[mlock_idx].block_queue)) {
 		do_unblock(list_front(&mlocks[mlock_idx].block_queue));
 	}
+	atomic_swap(UNLOCKED, (ptr_t)&mlocks[mlock_idx].lock.status);
 }
 
-void do_pid_lock_release(int pid)
+void do_destroy_pthread_lock(int pid)
 {
 	for (int i = 0; i < LOCK_NUM; ++i) {
 		if (mlocks[i].pid == pid) {
@@ -113,35 +108,32 @@ void init_semaphores(void)
 	}
 }
 
-void do_semaphore_mutex_lock_acquire(int sema_idx)
+void do_common_mutex_lock_acquire(mutex_lock_t *mutex)
 {
-	while (atomic_swap(LOCKED, (ptr_t)&sems[sema_idx].mutex.lock.status) ==
-	       LOCKED) {
-		current_running->status = TASK_BLOCKED;
-		do_block(&current_running->list,
-			 &sems[sema_idx].mutex.block_queue);
+	while (atomic_swap(LOCKED, (ptr_t)&mutex->lock.status) == LOCKED) {
+		do_block(&current_running->list, &mutex->block_queue);
 		do_scheduler();
 	}
 }
 
-void do_semaphore_mutex_lock_release(int sema_idx)
+void do_common_mutex_lock_release(mutex_lock_t *mutex)
 {
-	atomic_swap(UNLOCKED, (ptr_t)&sems[sema_idx].mutex.lock.status);
-	while (!list_empty(&sems[sema_idx].mutex.block_queue)) {
-		do_unblock(list_front(&sems[sema_idx].mutex.block_queue));
+	while (!list_empty(&mutex->block_queue)) {
+		do_unblock(list_front(&mutex->block_queue));
 	}
+	atomic_swap(UNLOCKED, (ptr_t)&mutex->lock.status);
 }
 
 int do_semaphore_init(int key, int init)
 {
 	int ret = -1;
 	for (int i = 0; i < SEMAPHORE_NUM; ++i) {
-		do_semaphore_mutex_lock_acquire(i);
+		do_common_mutex_lock_acquire(&sems[i].mutex);
 		if (sems[i].key == -1) {
 			ret = i;
 			sems[i].key = key;
 			sems[i].value = init;
-			do_semaphore_mutex_lock_release(i);
+			do_common_mutex_lock_release(&sems[i].mutex);
 			break;
 		}
 	}
@@ -150,26 +142,25 @@ int do_semaphore_init(int key, int init)
 
 void do_semaphore_up(int sema_idx)
 {
-	do_semaphore_mutex_lock_acquire(sema_idx);
+	do_common_mutex_lock_acquire(&sems[sema_idx].mutex);
 	if (!list_empty(&sems[sema_idx].wait_list)) {
 		do_unblock(list_front(&sems[sema_idx].wait_list));
 	} else {
 		++sems[sema_idx].value;
 	}
-	do_semaphore_mutex_lock_release(sema_idx);
+	do_common_mutex_lock_release(&sems[sema_idx].mutex);
 }
 
 void do_semaphore_down(int sema_idx)
 {
-	do_semaphore_mutex_lock_acquire(sema_idx);
+	do_common_mutex_lock_acquire(&sems[sema_idx].mutex);
 	if (sems[sema_idx].value == 0) {
-		do_semaphore_mutex_lock_release(sema_idx);
-		current_running->status = TASK_BLOCKED;
 		do_block(&current_running->list, &sems[sema_idx].wait_list);
+		do_common_mutex_lock_release(&sems[sema_idx].mutex);
 		do_scheduler();
 	} else {
 		--sems[sema_idx].value;
-		do_semaphore_mutex_lock_release(sema_idx);
+		do_common_mutex_lock_release(&sems[sema_idx].mutex);
 	}
 }
 

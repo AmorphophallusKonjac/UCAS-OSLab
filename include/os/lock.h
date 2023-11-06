@@ -60,7 +60,7 @@ void spin_lock_release(spin_lock_t *lock);
 int do_mutex_lock_init(int key);
 void do_mutex_lock_acquire(int mlock_idx);
 void do_mutex_lock_release(int mlock_idx);
-void do_pid_lock_release(int pid);
+void do_destroy_pthread_lock(int pid);
 
 /************************************************************/
 typedef struct barrier {
@@ -76,6 +76,9 @@ void do_barrier_destroy(int bar_idx);
 
 typedef struct condition {
   // TODO [P3-TASK2 condition]
+  int key;
+  mutex_lock_t mutex;
+  list_head wait_list;
 } condition_t;
 
 #define CONDITION_NUM 16

@@ -74,6 +74,7 @@ void do_sleep(uint32_t sleep_time)
 void do_block(list_node_t *pcb_node, list_head *queue)
 {
 	// TODO: [p2-task2] block the pcb task into the block queue
+	NODE2PCB(pcb_node)->status = TASK_BLOCKED;
 	list_push(queue, pcb_node);
 }
 
@@ -187,7 +188,7 @@ int do_kill(pid_t pid)
 		do_unblock(list_front(&pcb[pcbidx].wait_list));
 	}
 	list_del(&pcb[pcbidx].list);
-	do_pid_lock_release(pid);
+	do_destroy_pthread_lock(pid);
 	pcb[pcbidx].status = TASK_EXITED;
 	pcb[pcbidx].cursor_x = 0;
 	pcb[pcbidx].cursor_y = 0;
@@ -210,7 +211,7 @@ void do_exit(void)
 		do_unblock(list_front(&current_running->wait_list));
 	}
 	list_del(&current_running->list);
-	do_pid_lock_release(current_running->pid);
+	do_destroy_pthread_lock(current_running->pid);
 	current_running->status = TASK_EXITED;
 	current_running->cursor_x = 0;
 	current_running->cursor_y = 0;
