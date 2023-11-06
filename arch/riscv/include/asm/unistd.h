@@ -32,5 +32,7 @@
 #define SYSCALL_MBOX_CLOSE 53
 #define SYSCALL_MBOX_SEND 54
 #define SYSCALL_MBOX_RECV 55
+#define SYSCALL_SHM_GET 56
+#define SYSCALL_SHM_DT 57
 
 #endif
