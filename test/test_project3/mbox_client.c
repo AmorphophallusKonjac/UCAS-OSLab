@@ -35,11 +35,12 @@ int main()
 
 	int len = 0;
 	char strBuffer[MAX_MBOX_LENGTH - sizeof(MsgHeader_t)];
-	clientSendMsg(handle_mq, initReq, initReqLen);
-	int position = 0;
-	sys_mbox_recv(handle_posmq, &position, sizeof(int));
-	int blocked = 0;
 	int64_t bytes = 0;
+	int position = 0;
+	int blocked = 0;
+	blocked += clientSendMsg(handle_mq, initReq, initReqLen);
+	bytes += initReqLen;
+	sys_mbox_recv(handle_posmq, &position, sizeof(int));
 
 	sys_move_cursor(0, position);
 	printf("[Client] server started");

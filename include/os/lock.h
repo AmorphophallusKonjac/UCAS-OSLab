@@ -57,6 +57,7 @@ int spin_lock_try_acquire(spin_lock_t *lock);
 void spin_lock_acquire(spin_lock_t *lock);
 void spin_lock_release(spin_lock_t *lock);
 
+void mutex_init(mutex_lock_t *mutex);
 void mutex_destroy(mutex_lock_t *mutex);
 void mutex_lock_acquire(mutex_lock_t *mutex);
 void mutex_lock_release(mutex_lock_t *mutex);
@@ -75,6 +76,7 @@ typedef struct barrier {
 
 #define BARRIER_NUM 16
 
+void barrier_init(barrier_t *barrier);
 void barrier_destroy(barrier_t *barrier);
 void init_barriers(void);
 int do_barrier_init(int key, int goal);
@@ -90,6 +92,7 @@ typedef struct condition {
 
 #define CONDITION_NUM 16
 
+void condition_init(condition_t *condition);
 void condition_destroy(condition_t *condition);
 void init_conditions(void);
 int do_condition_init(int key);
@@ -107,6 +110,7 @@ typedef struct semaphore {
 
 #define SEMAPHORE_NUM 16
 
+void semaphore_init(semaphore_t *semaphore);
 void semaphore_destroy(semaphore_t *semaphore);
 void init_semaphores(void);
 int do_semaphore_init(int key, int init);
@@ -118,10 +122,18 @@ void do_semaphore_destroy(int sema_idx);
 
 typedef struct mailbox {
   // TODO [P3-TASK2 mailbox]
+  list_head reader_wait_list, writer_wait_list;
+  char name[32];
+  char buf[MAX_MBOX_LENGTH];
+  int size, front, tail, user_num;
+  mutex_lock_t mutex;
 } mailbox_t;
 
 #define MBOX_NUM 16
-void init_mbox();
+
+void mbox_init(mailbox_t *mailbox);
+void mbox_destroy(mailbox_t *mailbox);
+void init_mbox(void);
 int do_mbox_open(char *name);
 void do_mbox_close(int mbox_idx);
 int do_mbox_send(int mbox_idx, void *msg, int msg_length);

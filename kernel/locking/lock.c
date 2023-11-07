@@ -1,18 +1,22 @@
 #include <os/lock.h>
 #include <os/sched.h>
 #include <os/list.h>
+#include <os/string.h>
 #include <atomic.h>
 
 mutex_lock_t mlocks[LOCK_NUM];
+mutex_lock_t mutex[LOCK_NUM];
 semaphore_t sema[SEMAPHORE_NUM];
 condition_t cond[CONDITION_NUM];
 barrier_t bar[BARRIER_NUM];
+mailbox_t mbox[MBOX_NUM];
 
 void init_locks(void)
 {
 	/* TODO: [p2-task2] initialize mlocks */
 	for (int i = 0; i < LOCK_NUM; ++i) {
-		mutex_destroy(&mlocks[i]);
+		mutex_init(&mlocks[i]);
+		mutex_init(&mutex[i]);
 	}
 }
 
@@ -37,12 +41,16 @@ void spin_lock_release(spin_lock_t *lock)
 	/* TODO: [p2-task2] release spin lock */
 }
 
-void mutex_destroy(mutex_lock_t *mutex)
+void mutex_init(mutex_lock_t *mutex)
 {
 	list_destroy(&mutex->block_queue);
+	mutex_destroy(mutex);
+}
+
+void mutex_destroy(mutex_lock_t *mutex)
+{
 	mutex->key = -1;
-	mutex->lock.status = UNLOCKED;
-	mutex->pid = 0;
+	mutex_lock_release(mutex);
 }
 
 void mutex_lock_acquire(mutex_lock_t *mutex)
@@ -68,24 +76,27 @@ int do_mutex_lock_init(int key)
 	/* TODO: [p2-task2] initialize mutex lock */
 	int ret = -1;
 	for (int i = 0; i < LOCK_NUM; ++i) {
+		mutex_lock_acquire(&mutex[i]);
 		if (mlocks[i].key == key) {
 			ret = i;
+			mutex_lock_release(&mutex[i]);
 			break;
 		}
+		mutex_lock_release(&mutex[i]);
 	}
 	if (ret != -1)
 		return ret;
 	for (int i = 0; i < LOCK_NUM; ++i) {
+		mutex_lock_acquire(&mutex[i]);
 		if (mlocks[i].key == -1) {
 			ret = i;
+			mutex_destroy(&mlocks[i]);
+			mlocks[i].key = key;
+			mutex_lock_release(&mutex[i]);
 			break;
 		}
+		mutex_lock_release(&mutex[i]);
 	}
-	mlocks[ret].block_queue.next = &mlocks[ret].block_queue;
-	mlocks[ret].block_queue.prev = &mlocks[ret].block_queue;
-	mlocks[ret].key = key;
-	mlocks[ret].lock.status = UNLOCKED;
-	mlocks[ret].pid = 0;
 	return ret;
 }
 
@@ -113,7 +124,7 @@ void do_destroy_pthread_lock(int pid)
 void init_semaphores(void)
 {
 	for (int i = 0; i < SEMAPHORE_NUM; ++i) {
-		semaphore_destroy(&sema[i]);
+		semaphore_init(&sema[i]);
 	}
 }
 
@@ -158,24 +169,31 @@ void do_semaphore_down(int sema_idx)
 	}
 }
 
+void semaphore_init(semaphore_t *semaphore)
+{
+	mutex_init(&semaphore->mutex);
+	semaphore_destroy(semaphore);
+}
+
 void semaphore_destroy(semaphore_t *semaphore)
 {
 	semaphore->key = -1;
 	semaphore->value = 0;
 	list_destroy(&semaphore->wait_list);
-	mutex_destroy(&semaphore->mutex);
 	semaphore->pid = 0;
+	mutex_destroy(&semaphore->mutex);
 }
 
 void do_semaphore_destroy(int sema_idx)
 {
+	mutex_lock_acquire(&sema[sema_idx].mutex);
 	semaphore_destroy(&sema[sema_idx]);
 }
 
 void init_conditions(void)
 {
 	for (int i = 0; i < CONDITION_NUM; ++i) {
-		condition_destroy(&cond[i]);
+		condition_init(&cond[i]);
 	}
 }
 
@@ -221,23 +239,30 @@ void do_condition_broadcast(int cond_idx)
 	mutex_lock_release(&cond[cond_idx].mutex);
 }
 
+void condition_init(condition_t *condition)
+{
+	mutex_init(&condition->mutex);
+	condition_destroy(condition);
+}
+
 void condition_destroy(condition_t *condition)
 {
 	condition->key = -1;
-	mutex_destroy(&condition->mutex);
 	list_destroy(&condition->wait_list);
 	condition->pid = 0;
+	mutex_destroy(&condition->mutex);
 }
 
 void do_condition_destroy(int cond_idx)
 {
+	mutex_lock_acquire(&cond[cond_idx].mutex);
 	condition_destroy(&cond[cond_idx]);
 }
 
 void init_barriers(void)
 {
 	for (int i = 0; i < BARRIER_NUM; ++i) {
-		barrier_destroy(&bar[i]);
+		barrier_init(&bar[i]);
 	}
 }
 
@@ -275,16 +300,135 @@ void do_barrier_wait(int bar_idx)
 	}
 }
 
+void barrier_init(barrier_t *barrier)
+{
+	mutex_init(&barrier->mutex);
+	barrier_destroy(barrier);
+}
+
 void barrier_destroy(barrier_t *barrier)
 {
 	barrier->cnt = 0;
 	barrier->goal = 0;
 	barrier->key = -1;
-	mutex_destroy(&barrier->mutex);
 	list_destroy(&barrier->wait_list);
+	mutex_destroy(&barrier->mutex);
 }
 
 void do_barrier_destroy(int bar_idx)
 {
+	mutex_lock_acquire(&bar[bar_idx].mutex);
 	barrier_destroy(&bar[bar_idx]);
+}
+
+void mbox_init(mailbox_t *mailbox)
+{
+	mutex_init(&mailbox->mutex);
+	mbox_destroy(mailbox);
+}
+
+void mbox_destroy(mailbox_t *mailbox)
+{
+	mailbox->size = 0;
+	mailbox->front = 0;
+	mailbox->tail = 0;
+	mailbox->user_num = 0;
+	list_destroy(&mailbox->reader_wait_list);
+	list_destroy(&mailbox->writer_wait_list);
+	mutex_destroy(&mailbox->mutex);
+}
+
+void init_mbox(void)
+{
+	for (int i = 0; i < MBOX_NUM; ++i) {
+		mbox_init(&mbox[i]);
+	}
+}
+
+int do_mbox_open(char *name)
+{
+	for (int i = 0; i < MBOX_NUM; ++i) {
+		mutex_lock_acquire(&mbox[i].mutex);
+		if (strcmp(name, mbox[i].name) == 0) {
+			++mbox[i].user_num;
+			mutex_lock_release(&mbox[i].mutex);
+			return i;
+		}
+		mutex_lock_release(&mbox[i].mutex);
+	}
+	int ret = -1;
+	for (int i = 0; i < MBOX_NUM; ++i) {
+		mutex_lock_acquire(&mbox[i].mutex);
+		if (mbox[i].user_num == 0 || strcmp(name, mbox[i].name) == 0) {
+			++mbox[i].user_num;
+			strcpy(mbox[i].name, name);
+			mutex_lock_release(&mbox[i].mutex);
+			ret = i;
+			break;
+		}
+		mutex_lock_release(&mbox[i].mutex);
+	}
+	return ret;
+}
+
+void do_mbox_close(int mbox_idx)
+{
+	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	if (--mbox[mbox_idx].user_num == 0) {
+		mbox_destroy(&mbox[mbox_idx]);
+	} else {
+		mutex_lock_release(&mbox[mbox_idx].mutex);
+	}
+}
+
+int do_mbox_send(int mbox_idx, void *msg, int msg_length)
+{
+	int blocked = 0;
+	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	while (msg_length + mbox[mbox_idx].size > MAX_MBOX_LENGTH) {
+		blocked = 1;
+		do_block(&current_running->list,
+			 &mbox[mbox_idx].writer_wait_list);
+		mutex_lock_release(&mbox[mbox_idx].mutex);
+		do_scheduler();
+		mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	}
+	mbox[mbox_idx].size += msg_length;
+	char *src = msg;
+	for (int i = 0; i < msg_length; ++i) {
+		mbox[mbox_idx].buf[mbox[mbox_idx].tail++] = src[i];
+		if (mbox[mbox_idx].tail == MAX_MBOX_LENGTH)
+			mbox[mbox_idx].tail = 0;
+	}
+	while (!list_empty(&mbox[mbox_idx].reader_wait_list)) {
+		do_unblock(list_front(&mbox[mbox_idx].reader_wait_list));
+	}
+	mutex_lock_release(&mbox[mbox_idx].mutex);
+	return blocked;
+}
+
+int do_mbox_recv(int mbox_idx, void *msg, int msg_length)
+{
+	int blocked = 0;
+	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	while (mbox[mbox_idx].size < msg_length) {
+		blocked = 1;
+		do_block(&current_running->list,
+			 &mbox[mbox_idx].reader_wait_list);
+		mutex_lock_release(&mbox[mbox_idx].mutex);
+		do_scheduler();
+		mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	}
+	mbox[mbox_idx].size -= msg_length;
+	char *dest = msg;
+	for (int i = 0; i < msg_length; ++i) {
+		dest[i] = mbox[mbox_idx].buf[mbox[mbox_idx].front++];
+		if (mbox[mbox_idx].front == MAX_MBOX_LENGTH)
+			mbox[mbox_idx].front = 0;
+	}
+	while (!list_empty(&mbox[mbox_idx].writer_wait_list)) {
+		do_unblock(list_front(&mbox[mbox_idx].writer_wait_list));
+	}
+	mutex_lock_release(&mbox[mbox_idx].mutex);
+	return blocked;
 }
