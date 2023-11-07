@@ -57,6 +57,9 @@ int spin_lock_try_acquire(spin_lock_t *lock);
 void spin_lock_acquire(spin_lock_t *lock);
 void spin_lock_release(spin_lock_t *lock);
 
+void mutex_destroy(mutex_lock_t *mutex);
+void mutex_lock_acquire(mutex_lock_t *mutex);
+void mutex_lock_release(mutex_lock_t *mutex);
 int do_mutex_lock_init(int key);
 void do_mutex_lock_acquire(int mlock_idx);
 void do_mutex_lock_release(int mlock_idx);
@@ -65,10 +68,14 @@ void do_destroy_pthread_lock(int pid);
 /************************************************************/
 typedef struct barrier {
   // TODO [P3-TASK2 barrier]
+  int key, cnt, goal, pid;
+  mutex_lock_t mutex;
+  list_head wait_list;
 } barrier_t;
 
 #define BARRIER_NUM 16
 
+void barrier_destroy(barrier_t *barrier);
 void init_barriers(void);
 int do_barrier_init(int key, int goal);
 void do_barrier_wait(int bar_idx);
@@ -76,13 +83,14 @@ void do_barrier_destroy(int bar_idx);
 
 typedef struct condition {
   // TODO [P3-TASK2 condition]
-  int key;
+  int key, pid;
   mutex_lock_t mutex;
   list_head wait_list;
 } condition_t;
 
 #define CONDITION_NUM 16
 
+void condition_destroy(condition_t *condition);
 void init_conditions(void);
 int do_condition_init(int key);
 void do_condition_wait(int cond_idx, int mutex_idx);
@@ -92,13 +100,14 @@ void do_condition_destroy(int cond_idx);
 
 typedef struct semaphore {
   // TODO [P3-TASK2 semaphore]
-  int key, value;
+  int key, value, pid;
   mutex_lock_t mutex;
   list_head wait_list;
 } semaphore_t;
 
 #define SEMAPHORE_NUM 16
 
+void semaphore_destroy(semaphore_t *semaphore);
 void init_semaphores(void);
 int do_semaphore_init(int key, int init);
 void do_semaphore_up(int sema_idx);

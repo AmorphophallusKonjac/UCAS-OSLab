@@ -205,16 +205,25 @@ static void init_syscall(void)
 	syscall[SYSCALL_WRITE] = (long (*)())screen_write;
 	syscall[SYSCALL_CURSOR] = (long (*)())screen_move_cursor;
 	syscall[SYSCALL_REFLUSH] = (long (*)())screen_reflush;
-
+	syscall[SYSCALL_CLEAR] = (long (*)())screen_clear;
 	syscall[SYSCALL_GET_TIMEBASE] = (long (*)())get_time_base;
 	syscall[SYSCALL_GET_TICK] = (long (*)())get_ticks;
-	syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
-	syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
-	syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
 	syscall[SYSCALL_SEMA_INIT] = (long (*)())do_semaphore_init;
 	syscall[SYSCALL_SEMA_UP] = (long (*)())do_semaphore_up;
 	syscall[SYSCALL_SEMA_DOWN] = (long (*)())do_semaphore_down;
 	syscall[SYSCALL_SEMA_DESTROY] = (long (*)())do_semaphore_destroy;
+	syscall[SYSCALL_LOCK_INIT] = (long (*)())do_mutex_lock_init;
+	syscall[SYSCALL_LOCK_ACQ] = (long (*)())do_mutex_lock_acquire;
+	syscall[SYSCALL_LOCK_RELEASE] = (long (*)())do_mutex_lock_release;
+
+	syscall[SYSCALL_BARR_INIT] = (long (*)())do_barrier_init;
+	syscall[SYSCALL_BARR_WAIT] = (long (*)())do_barrier_wait;
+	syscall[SYSCALL_BARR_DESTROY] = (long (*)())do_barrier_destroy;
+	syscall[SYSCALL_COND_INIT] = (long (*)())do_condition_init;
+	syscall[SYSCALL_COND_WAIT] = (long (*)())do_condition_wait;
+	syscall[SYSCALL_COND_SIGNAL] = (long (*)())do_condition_signal;
+	syscall[SYSCALL_COND_BROADCAST] = (long (*)())do_condition_broadcast;
+	syscall[SYSCALL_COND_DESTROY] = (long (*)())do_condition_destroy;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
@@ -269,9 +278,18 @@ int main(void)
 	init_locks();
 	printk("> [INIT] Lock mechanism initialization succeeded.\n");
 
-	// Init semaphores mechanism o(´^｀)o
+	// Init semaphore mechanism o(´^｀)o
 	init_semaphores();
 	printk("> [INIT] semaphores mechanism initialization succeeded.\n");
+
+	// Init barrier mechanism o(´^｀)o
+	init_barriers();
+	printk("> [INIT] barriers mechanism initialization succeeded.\n");
+
+	// Init condition mechanism o(´^｀)o
+	init_conditions();
+	printk("> [INIT] condition mechanism initialization succeeded.\n");
+
 	// Init interrupt (^_^)
 	init_exception();
 	printk("> [INIT] Interrupt processing initialization succeeded.\n");
