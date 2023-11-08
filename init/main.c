@@ -159,12 +159,11 @@ static void init_pcb(void)
 	}
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
-	current_running = &pid0_pcb0;
-	current_running->status =
-		TASK_RUNNING; // to stop pcb0 from being pushed into ready_queue
+	cpu[0].current_running = &pid0_pcb0;
+	cpu[0].pid = 0;
 	asm volatile("mv tp, %0;"
 		     :
-		     : "r"(current_running)); // set tp = current_running
+		     : "r"(cpu[0].current_running)); // set tp = current_running
 }
 
 static int thread_create(int *tidptr, long func, void *arg)
@@ -320,13 +319,12 @@ int main(void)
 
 	} else {
 		lock_kernel();
-		current_running = &pid0_pcb1;
-		current_running->status =
-			TASK_RUNNING; // to stop pcb0 from being pushed into ready_queue
+		cpu[1].current_running = &pid0_pcb1;
+		cpu[1].pid = 0;
 		asm volatile(
 			"mv tp, %0;"
 			:
-			: "r"(current_running)); // set tp = current_running
+			: "r"(cpu[1].current_running)); // set tp = current_running
 		unlock_kernel();
 		setup_exception();
 	}

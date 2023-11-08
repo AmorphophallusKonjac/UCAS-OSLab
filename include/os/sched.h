@@ -35,6 +35,7 @@
 #include <type.h>
 
 #define NUM_MAX_TASK 16
+#define NUM_MAX_CPU 2
 
 /* used to save register infomation */
 typedef struct regs_context {
@@ -74,6 +75,9 @@ typedef struct pcb {
   list_node_t list;
   list_head wait_list;
 
+  uint64_t cpuID;
+  int cpuMask;
+
   /* process id */
   pid_t pid;
   /* */
@@ -91,14 +95,22 @@ typedef struct pcb {
 
 } pcb_t, tcb_t;
 
+/* CPU */
+typedef struct cpu {
+  pid_t pid;
+  pcb_t *volatile current_running;
+} cpu_t;
+
 /* ready queue to run */
 extern list_head ready_queue;
 
 /* sleep queue to be blocked in */
 extern list_head sleep_queue;
 
+extern cpu_t cpu[NUM_MAX_CPU];
+
 /* current running task PCB */
-extern pcb_t *volatile current_running;
+// extern pcb_t *volatile current_running;
 extern pid_t process_id;
 extern tid_t thread_id;
 

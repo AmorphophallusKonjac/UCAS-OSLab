@@ -15,29 +15,31 @@
 extern void ret_from_exception();
 pcb_t pcb[NUM_MAX_TASK];
 tcb_t tcb[NUM_MAX_TASK];
+cpu_t cpu[NUM_MAX_CPU];
 const ptr_t pid0_stack = INIT_KERNEL_STACK + PAGE_SIZE;
-pcb_t pid0_pcb0 = { .pid = 0,
-		    .kernel_sp = (ptr_t)pid0_stack,
-		    .user_sp = (ptr_t)pid0_stack };
-pcb_t pid0_pcb1 = { .pid = 0,
-		    .kernel_sp = (ptr_t)pid0_stack + PAGE_SIZE,
-		    .user_sp = (ptr_t)pid0_stack + PAGE_SIZE };
+pcb_t pid0_pcb[2] = { { .pid = 0,
+			.kernel_sp = (ptr_t)pid0_stack,
+			.user_sp = (ptr_t)pid0_stack,
+			.cpuID = 0,
+			.cpuMask = 1,
+			.status = TASK_EXITED },
+		      { .pid = 0,
+			.kernel_sp = (ptr_t)pid0_stack + PAGE_SIZE,
+			.user_sp = (ptr_t)pid0_stack + PAGE_SIZE,
+			.cpuID = 1,
+			.cpuMask = 2,
+			.status = TASK_EXITED } };
 
 LIST_HEAD(ready_queue);
 LIST_HEAD(sleep_queue);
 
 /* current running task PCB */
-pcb_t *volatile current_running;
+// pcb_t *volatile current_running;
 
 /* global process id */
 pid_t process_id = 1;
 
 pid_t thread_id = 1;
-
-void update_current_running()
-{
-	asm volatile("mv %0, tp;" : "=r"(current_running));
-}
 
 void list_print(list_head *queue)
 {
@@ -47,8 +49,26 @@ void list_print(list_head *queue)
 	printl("\n");
 }
 
+pcb_t *pick_next_task(uint64_t cpuID)
+{
+	pcb_t *next_task = NULL;
+	for (list_node_t *ptr = list_front(&ready_queue); ptr != &ready_queue;
+	     ptr = ptr->next) {
+		pcb_t *task = NODE2PCB(ptr);
+		if (task->cpuMask & (1 << cpuID)) {
+			next_task = task;
+			next_task->status = TASK_RUNNING;
+			next_task->cpuID = cpuID;
+			list_del(ptr);
+			break;
+		}
+	}
+	return (next_task == NULL) ? &pid0_pcb[cpuID] : next_task;
+}
+
 void do_scheduler(void)
 {
+	uint64_t cpuID = get_current_cpu_id();
 	// TODO: [p2-task3] Check sleep queue to wake up PCBs
 	check_sleeping();
 	/************************************************************/
@@ -56,27 +76,26 @@ void do_scheduler(void)
 	/************************************************************/
 
 	// TODO: [p2-task1] Modify the current_running pointer.
-	pcb_t *prev_running = current_running;
+	pcb_t *prev_running = cpu[cpuID].current_running;
 	if (prev_running->status == TASK_RUNNING) {
 		list_push(&ready_queue, &prev_running->list);
 		prev_running->status = TASK_READY;
 	}
-
-	current_running = NODE2PCB(list_front(&ready_queue));
-	current_running->status = TASK_RUNNING;
-	list_pop(&ready_queue);
-
+	cpu[cpuID].current_running = pick_next_task(cpuID);
+	cpu[cpuID].pid = cpu[cpuID].current_running->pid;
 	// printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
 	//        prev_running->pid, current_running->pid);
 	// list_print(&ready_queue);
 	// printl("\n");
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
-	switch_to(prev_running, current_running);
+	switch_to(prev_running, cpu[cpuID].current_running);
 }
 
 void do_sleep(uint32_t sleep_time)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	// TODO: [p2-task3] sleep(seconds)
 	// NOTE: you can assume: 1 second = 1 `timebase` ticks
 	// 1. block the current_running
@@ -191,6 +210,9 @@ pid_t do_exec(char *name, int argc, char *argv[])
 
 int do_kill(pid_t pid)
 {
+	/* TODO: solve problem of kill task running on other core */
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
 		if (pcb[i].pid == pid) {
@@ -219,11 +241,15 @@ int do_kill(pid_t pid)
 
 pid_t do_getpid()
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	return current_running->pid;
 }
 
 void do_exit(void)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	while (!list_empty(&current_running->wait_list)) {
 		do_unblock(list_front(&current_running->wait_list));
 	}
@@ -242,6 +268,8 @@ void do_exit(void)
 
 int do_waitpid(pid_t pid)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
 		if (pcb[i].pid == pid) {
