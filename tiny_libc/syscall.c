@@ -148,6 +148,12 @@ void sys_hidden_cursor(void)
 		       IGNORE);
 }
 
+int sys_taskset(pid_t pid, int mask)
+{
+	return invoke_syscall(SYSCALL_TASKSET, (long)pid, (long)mask, IGNORE,
+			      IGNORE, IGNORE);
+}
+
 /************************************************************/
 #ifdef S_CORE
 pid_t sys_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2)

@@ -30,6 +30,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 #define SHELL_BEGIN 20
 
@@ -77,19 +78,6 @@ void execParser(int argc, char **argv)
 	}
 }
 
-pid_t atoi(char *st)
-{
-	pid_t ret = 0;
-	for (int i = 0; st[i]; ++i) {
-		if (isdigit(st[i])) {
-			ret = ret * 10 + st[i] - '0';
-		} else {
-			return -1;
-		}
-	}
-	return ret;
-}
-
 void killParser(int argc, char **argv)
 {
 	if (argc < 2) {
@@ -97,7 +85,7 @@ void killParser(int argc, char **argv)
 		return;
 	}
 	pid_t pid = atoi(argv[1]);
-	if (pid == -1) {
+	if (!pid) {
 		printf("Error: Unknown pid %s!\n", argv[1]);
 		return;
 	}
@@ -109,6 +97,65 @@ void clearParser(int argc, char **argv)
 	sys_screen_clear();
 	sys_move_cursor(0, SHELL_BEGIN);
 	printf("------------------- COMMAND -------------------\n");
+}
+
+void tasksetParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss argument!\n");
+		return;
+	}
+	if (strcmp(argv[1], "-p") == 0) {
+		if (argc < 3) {
+			printf("Error: Miss mask and pid!\n");
+			return;
+		}
+		if (argc < 4) {
+			printf("Error: Miss pid!\n");
+			return;
+		}
+		if (argc > 4) {
+			printf("Error: too many arguments!\n");
+			return;
+		}
+		int mask = atoi(argv[2]);
+		pid_t pid = atoi(argv[3]);
+		if (!mask) {
+			printf("Error: Unknown mask!\n");
+			return;
+		}
+		if (!pid) {
+			printf("Error: Unknown pid!\n");
+			return;
+		}
+		if (sys_taskset(pid, mask) == 0) {
+			printf("Info: set task %d mask to %d...\n", pid, mask);
+		} else {
+			printf("Error: could not find task %d!\n", pid);
+		}
+	} else {
+		int needWait = 1;
+		if (strcmp(argv[argc - 1], "&") == 0) {
+			needWait = 0;
+			--argc;
+		}
+		if (argc < 3) {
+			printf("Error: Miss task name!\n");
+			return;
+		}
+		int mask = atoi(argv[1]);
+		pid_t pid = sys_exec(argv[2], argc - 2, argv + 2);
+		if (!pid) {
+			printf("Info: execute %s failed.\n", argv[2]);
+			return;
+		}
+		sys_taskset(pid, mask);
+		printf("Info: execute %s successfully, pid = %d , mask = %d...\n",
+		       argv[2], pid, mask);
+		if (needWait) {
+			sys_waitpid(pid);
+		}
+	}
 }
 
 /*****************************************************************************************/
@@ -175,6 +222,9 @@ void initSyscall()
 
 	strcpy(command[3].name, "clear");
 	command[3].parser = (long (*)())clearParser;
+
+	strcpy(command[4].name, "taskset");
+	command[4].parser = (long (*)())tasksetParser;
 }
 
 int main(void)

@@ -4,6 +4,7 @@
 #include <os/sched.h>
 #include <os/irq.h>
 #include <os/kernel.h>
+#include <os/smp.h>
 
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 50
@@ -44,6 +45,8 @@ static void vt100_show_cursor()
 /* write a char */
 static void screen_write_ch(char ch)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	if (ch == '\n') {
 		current_running->cursor_x = 0;
 		current_running->cursor_y++;
@@ -63,6 +66,8 @@ void init_screen(void)
 
 void screen_clear(void)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int i, j;
 	for (i = 0; i < SCREEN_HEIGHT; i++) {
 		for (j = 0; j < SCREEN_WIDTH; j++) {
@@ -76,6 +81,8 @@ void screen_clear(void)
 
 void screen_move_cursor(int x, int y)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	current_running->cursor_x = x;
 	current_running->cursor_y = y;
 	vt100_move_cursor(x, y);
@@ -99,6 +106,8 @@ void screen_write(char *buff)
  */
 void screen_reflush(void)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int i, j;
 
 	/* here to reflush screen buffer to serial port */
@@ -121,6 +130,8 @@ void screen_reflush(void)
 
 void screen_backspace(void)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	if (current_running->cursor_x <= 0)
 		return;
 	vt100_move_cursor(--current_running->cursor_x,

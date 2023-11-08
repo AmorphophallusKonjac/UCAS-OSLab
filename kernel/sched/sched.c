@@ -22,13 +22,13 @@ pcb_t pid0_pcb[2] = { { .pid = 0,
 			.user_sp = (ptr_t)pid0_stack,
 			.cpuID = 0,
 			.cpuMask = 1,
-			.status = TASK_EXITED },
+			.status = TASK_IDLE },
 		      { .pid = 0,
 			.kernel_sp = (ptr_t)pid0_stack + PAGE_SIZE,
 			.user_sp = (ptr_t)pid0_stack + PAGE_SIZE,
 			.cpuID = 1,
 			.cpuMask = 2,
-			.status = TASK_EXITED } };
+			.status = TASK_IDLE } };
 
 LIST_HEAD(ready_queue);
 LIST_HEAD(sleep_queue);
@@ -52,8 +52,8 @@ void list_print(list_head *queue)
 pcb_t *pick_next_task(uint64_t cpuID)
 {
 	pcb_t *next_task = NULL;
-	for (list_node_t *ptr = list_front(&ready_queue); ptr != &ready_queue;
-	     ptr = ptr->next) {
+	for (list_node_t *ptr = list_front(&ready_queue);
+	     ptr != &ready_queue && ptr != 0; ptr = ptr->next) {
 		pcb_t *task = NODE2PCB(ptr);
 		if (task->cpuMask & (1 << cpuID)) {
 			next_task = task;
@@ -181,6 +181,8 @@ pid_t do_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2)
 #else
 pid_t do_exec(char *name, int argc, char *argv[])
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	uint64_t entrypoint = getEntrypoint(name);
 	if (entrypoint == 0) {
 		printk("Can not find %s!\n", name);
@@ -203,6 +205,7 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	pcb[pcbidx].pid = process_id++;
 	pcb[pcbidx].tid = 0;
 	pcb[pcbidx].wakeup_time = 0;
+	pcb[pcbidx].cpuMask = current_running->cpuMask;
 	list_push(&ready_queue, &pcb[pcbidx].list);
 	return pcb[pcbidx].pid;
 }
@@ -292,17 +295,34 @@ void do_process_show()
 			printk("[%d] PID : %d   STATUS : ", i, pcb[i].pid);
 			switch (pcb[i].status) {
 			case TASK_READY:
-				printk("READY\n");
+				printk("READY  ");
 				break;
 			case TASK_BLOCKED:
-				printk("BLOCKED\n");
+				printk("BLOCKED");
 				break;
 			case TASK_RUNNING:
-				printk("RUNNING\n");
+				printk("RUNNING");
 				break;
 			default:
 				assert(0);
 			}
+			printk("  MASK: %x", pcb[i].cpuMask);
+			if (pcb[i].status == TASK_RUNNING) {
+				printk(" Running on core %d\n", pcb[i].cpuID);
+			} else {
+				printk("\n");
+			}
 		}
 	}
+}
+
+int do_taskset(pid_t pid, int mask)
+{
+	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		if (pid == pcb[i].pid) {
+			pcb[i].cpuMask = mask;
+			return 0;
+		}
+	}
+	return 1;
 }

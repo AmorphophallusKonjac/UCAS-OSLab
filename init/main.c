@@ -153,13 +153,14 @@ static void init_pcb(void)
 		pcb[i].cursor_x = 0;
 		pcb[i].cursor_y = 0;
 		pcb[i].wakeup_time = 0;
+		pcb[i].cpuMask = 3;
 		init_pcb_stack(pcb[i].kernel_stack_base, pcb[i].user_stack_base,
 			       getEntrypoint(needed_task_name[i]), 0, pcb + i);
 		list_push(&ready_queue, &pcb[i].list);
 	}
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
-	cpu[0].current_running = &pid0_pcb0;
+	cpu[0].current_running = &pid0_pcb[0];
 	cpu[0].pid = 0;
 	asm volatile("mv tp, %0;"
 		     :
@@ -239,6 +240,7 @@ static void init_syscall(void)
 	syscall[SYSCALL_SCREEN_CLEAR] = (long (*)())screen_clear;
 	syscall[SYSCALL_HIDDEN_CURSOR] = (long (*)())screen_hidden_cursor;
 	syscall[SYSCALL_SHOW_CURSOR] = (long (*)())screen_show_cursor;
+	syscall[SYSCALL_TASKSET] = (long (*)())do_taskset;
 }
 /************************************************************/
 
@@ -319,7 +321,7 @@ int main(void)
 
 	} else {
 		lock_kernel();
-		cpu[1].current_running = &pid0_pcb1;
+		cpu[1].current_running = &pid0_pcb[1];
 		cpu[1].pid = 0;
 		asm volatile(
 			"mv tp, %0;"

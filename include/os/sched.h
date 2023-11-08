@@ -60,6 +60,7 @@ typedef enum {
   TASK_RUNNING,
   TASK_READY,
   TASK_EXITED,
+  TASK_IDLE
 } task_status_t;
 
 /* Process Control Block */
@@ -116,8 +117,7 @@ extern tid_t thread_id;
 
 extern pcb_t pcb[NUM_MAX_TASK];
 extern tcb_t tcb[NUM_MAX_TASK];
-extern pcb_t pid0_pcb0;
-extern pcb_t pid0_pcb1;
+extern pcb_t pid0_pcb[2];
 extern const ptr_t pid0_stack;
 
 extern void switch_to(pcb_t *prev, pcb_t *next);
@@ -130,6 +130,8 @@ void do_unblock(list_node_t *);
 
 // [p2-task1]
 #define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-32))
+
+extern int do_taskset(pid_t pid, int mask);
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/

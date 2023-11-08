@@ -62,6 +62,8 @@ void mutex_destroy(mutex_lock_t *mutex)
 
 void mutex_lock_acquire(mutex_lock_t *mutex)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	while (atomic_swap(LOCKED, (ptr_t)&mutex->lock.status) == LOCKED) {
 		do_block(&current_running->list, &mutex->block_queue);
 		do_scheduler();
@@ -165,6 +167,8 @@ void do_semaphore_up(int sema_idx)
 
 void do_semaphore_down(int sema_idx)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	mutex_lock_acquire(&sema[sema_idx].mutex);
 	if (sema[sema_idx].value == 0) {
 		do_block(&current_running->list, &sema[sema_idx].wait_list);
@@ -222,6 +226,8 @@ int do_condition_init(int key)
 
 void do_condition_wait(int cond_idx, int mutex_idx)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	do_mutex_lock_release(mutex_idx);
 	mutex_lock_acquire(&cond[cond_idx].mutex);
 	do_block(&current_running->list, &cond[cond_idx].wait_list);
@@ -292,6 +298,8 @@ int do_barrier_init(int key, int goal)
 
 void do_barrier_wait(int bar_idx)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	mutex_lock_acquire(&bar[bar_idx].mutex);
 	++bar[bar_idx].cnt;
 	if (bar[bar_idx].cnt >= bar[bar_idx].goal) {
@@ -390,6 +398,8 @@ void do_mbox_close(int mbox_idx)
 
 int do_mbox_send(int mbox_idx, void *msg, int msg_length)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int blocked = 0;
 	mutex_lock_acquire(&mbox[mbox_idx].mutex);
 	while (msg_length + mbox[mbox_idx].size > MAX_MBOX_LENGTH) {
@@ -416,6 +426,8 @@ int do_mbox_send(int mbox_idx, void *msg, int msg_length)
 
 int do_mbox_recv(int mbox_idx, void *msg, int msg_length)
 {
+	uint64_t cpuID = get_current_cpu_id();
+	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int blocked = 0;
 	mutex_lock_acquire(&mbox[mbox_idx].mutex);
 	while (mbox[mbox_idx].size < msg_length) {
