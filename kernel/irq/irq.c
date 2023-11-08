@@ -3,6 +3,7 @@
 #include <os/sched.h>
 #include <os/string.h>
 #include <os/kernel.h>
+#include <os/smp.h>
 #include <printk.h>
 #include <assert.h>
 #include <screen.h>
@@ -67,5 +68,6 @@ void handle_other(regs_context_t *regs, uint64_t stval, uint64_t scause)
 	       regs->sbadaddr, regs->scause);
 	printk("sepc: 0x%lx\n\r", regs->sepc);
 	printk("tval: 0x%lx cause: 0x%lx\n", stval, scause);
+	printk("current running cpu: %d\n", get_current_cpu_id());
 	assert(0);
 }

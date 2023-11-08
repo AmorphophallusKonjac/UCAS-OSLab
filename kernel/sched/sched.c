@@ -15,9 +15,12 @@ extern void ret_from_exception();
 pcb_t pcb[NUM_MAX_TASK];
 tcb_t tcb[NUM_MAX_TASK];
 const ptr_t pid0_stack = INIT_KERNEL_STACK + PAGE_SIZE;
-pcb_t pid0_pcb = { .pid = 0,
-		   .kernel_sp = (ptr_t)pid0_stack,
-		   .user_sp = (ptr_t)pid0_stack };
+pcb_t pid0_pcb0 = { .pid = 0,
+		    .kernel_sp = (ptr_t)pid0_stack,
+		    .user_sp = (ptr_t)pid0_stack };
+pcb_t pid0_pcb1 = { .pid = 0,
+		    .kernel_sp = (ptr_t)pid0_stack + PAGE_SIZE,
+		    .user_sp = (ptr_t)pid0_stack + PAGE_SIZE };
 
 LIST_HEAD(ready_queue);
 LIST_HEAD(sleep_queue);
@@ -29,6 +32,11 @@ pcb_t *volatile current_running;
 pid_t process_id = 1;
 
 pid_t thread_id = 1;
+
+void update_current_running()
+{
+	asm volatile("mv %0, tp;" : "=r"(current_running));
+}
 
 void do_scheduler(void)
 {

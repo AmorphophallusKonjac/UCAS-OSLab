@@ -1,4 +1,5 @@
 #include <asm/biosdef.h>
+#include <csr.h>
 
 #define KERNEL_STACK		0x50500000
 
@@ -69,6 +70,16 @@ secondary:
 	 * 2. let stvec pointer to kernel_main
 	 * 3. enable software interrupt for ipi
 	 */
+	csrw CSR_SIE, zero
+  	csrw CSR_SIP, zero
+
+	la t0, kernel
+  	csrw CSR_STVEC, t0
+
+	li t0, SIE_SSIE
+	csrs CSR_SIE, t0
+	li t0, SR_SIE
+  	csrs CSR_SSTATUS, t0 
 
 wait_for_wakeup:
 	wfi

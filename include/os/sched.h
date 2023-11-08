@@ -104,10 +104,12 @@ extern tid_t thread_id;
 
 extern pcb_t pcb[NUM_MAX_TASK];
 extern tcb_t tcb[NUM_MAX_TASK];
-extern pcb_t pid0_pcb;
+extern pcb_t pid0_pcb0;
+extern pcb_t pid0_pcb1;
 extern const ptr_t pid0_stack;
 
 extern void switch_to(pcb_t *prev, pcb_t *next);
+void update_current_running();
 void do_scheduler(void);
 void do_sleep(uint32_t);
 

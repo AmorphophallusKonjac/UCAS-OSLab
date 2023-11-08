@@ -6,13 +6,18 @@
 #include <asm.h>
 #include <csr.h>
 
-#define KERNEL_STACK		0x50500000
+#define CORE1_KERNEL_STACK		0x50500000
+#define CORE2_KERNEL_STACK    0x50501000
 
 .section ".entry_function","ax"
 ENTRY(_start)
   /* Mask all interrupts */
   csrw CSR_SIE, zero
   csrw CSR_SIP, zero
+
+  csrr a0, CSR_MHARTID
+
+  bnez a0, secondary
 
   /* TODO: [p1-task2] clear BSS for flat non-ELF images */
   la s0, __bss_start
@@ -26,7 +31,11 @@ bss_clear:
 bss_clear_done:
 
   /* TODO: [p1-task2] setup C environment */
-  li sp, KERNEL_STACK
+  li sp, CORE1_KERNEL_STACK
+  j main
+
+secondary:
+  li sp, CORE2_KERNEL_STACK
   j main
 
 loop:

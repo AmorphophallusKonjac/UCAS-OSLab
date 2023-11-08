@@ -10,6 +10,8 @@
 #include <os/string.h>
 #include <os/mm.h>
 #include <os/time.h>
+#include <os/smp.h>
+#include <os/irq.h>
 #include <sys/syscall.h>
 #include <screen.h>
 #include <printk.h>
@@ -18,6 +20,7 @@
 #include <csr.h>
 
 extern void ret_from_exception();
+extern void clear_SIP();
 #define VERSION_BUF 50
 #define OS_SIZE_LOC 0x502001fc
 #define STACK_PAGE_NUM 1
@@ -156,7 +159,7 @@ static void init_pcb(void)
 	}
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
-	current_running = &pid0_pcb;
+	current_running = &pid0_pcb0;
 	current_running->status =
 		TASK_EXITED; // to stop pcb0 from being pushed into ready_queue
 	asm volatile("mv tp, %0;"
@@ -242,73 +245,91 @@ static void init_syscall(void)
 
 int main(void)
 {
-	// Check whether .bss section is set to zero
-	int check = bss_check();
+	if (get_current_cpu_id() == 0) {
+		// Check whether .bss section is set to zero
+		int check = bss_check();
 
-	// Init jump table provided by kernel and bios(ΦωΦ)
-	init_jmptab();
+		// Init jump table provided by kernel and bios(ΦωΦ)
+		init_jmptab();
 
-	// Init task information (〃'▽'〃)
-	init_task_info();
+		// Init task information (〃'▽'〃)
+		init_task_info();
 
-	// Output 'Hello OS!', bss check result and OS version
-	char output_str[] = "bss check: _ version: _\n\r";
-	char output_val[2] = { 0 };
-	int i, output_val_pos = 0;
+		// Output 'Hello OS!', bss check result and OS version
+		char output_str[] = "bss check: _ version: _\n\r";
+		char output_val[2] = { 0 };
+		int i, output_val_pos = 0;
 
-	output_val[0] = check ? 't' : 'f';
-	output_val[1] = version + '0';
-	for (i = 0; i < sizeof(output_str); ++i) {
-		buf[i] = output_str[i];
-		if (buf[i] == '_') {
-			buf[i] = output_val[output_val_pos++];
+		output_val[0] = check ? 't' : 'f';
+		output_val[1] = version + '0';
+		for (i = 0; i < sizeof(output_str); ++i) {
+			buf[i] = output_str[i];
+			if (buf[i] == '_') {
+				buf[i] = output_val[output_val_pos++];
+			}
 		}
+
+		bios_putstr("Hello OS!\n\r");
+		bios_putstr(buf);
+
+		// Load all tasks
+		init_tasks();
+
+		// Init Process Control Blocks |•'-'•) ✧
+		init_pcb();
+		printk("> [INIT] PCB initialization succeeded.\n");
+
+		// Read CPU frequency (｡•ᴗ-)_
+		time_base = bios_read_fdt(TIMEBASE);
+
+		// Init lock mechanism o(´^｀)o
+		init_locks();
+		printk("> [INIT] Lock mechanism initialization succeeded.\n");
+
+		// Init semaphore mechanism o(´^｀)o
+		init_semaphores();
+		printk("> [INIT] semaphores mechanism initialization succeeded.\n");
+
+		// Init barrier mechanism o(´^｀)o
+		init_barriers();
+		printk("> [INIT] barriers mechanism initialization succeeded.\n");
+
+		// Init condition mechanism o(´^｀)o
+		init_conditions();
+		printk("> [INIT] condition mechanism initialization succeeded.\n");
+
+		// Init mailbox mechanism o(´^｀)o
+		init_mbox();
+		printk("> [INIT] mailbox mechanism initialization succeeded.\n");
+
+		// Init interrupt (^_^)
+		init_exception();
+		printk("> [INIT] Interrupt processing initialization succeeded.\n");
+
+		// Init system call table (0_0)
+		init_syscall();
+		printk("> [INIT] System call initialized successfully.\n");
+
+		// Init screen (QAQ)
+		init_screen();
+		printk("> [INIT] SCREEN initialization succeeded.\n");
+
+		smp_init();
+		wakeup_other_hart();
+		clear_SIP();
+
+	} else {
+		lock_kernel();
+		current_running = &pid0_pcb1;
+		current_running->status =
+			TASK_EXITED; // to stop pcb0 from being pushed into ready_queue
+		asm volatile(
+			"mv tp, %0;"
+			:
+			: "r"(current_running)); // set tp = current_running
+		unlock_kernel();
+		setup_exception();
 	}
-
-	bios_putstr("Hello OS!\n\r");
-	bios_putstr(buf);
-
-	// Load all tasks
-	init_tasks();
-
-	// Init Process Control Blocks |•'-'•) ✧
-	init_pcb();
-	printk("> [INIT] PCB initialization succeeded.\n");
-
-	// Read CPU frequency (｡•ᴗ-)_
-	time_base = bios_read_fdt(TIMEBASE);
-
-	// Init lock mechanism o(´^｀)o
-	init_locks();
-	printk("> [INIT] Lock mechanism initialization succeeded.\n");
-
-	// Init semaphore mechanism o(´^｀)o
-	init_semaphores();
-	printk("> [INIT] semaphores mechanism initialization succeeded.\n");
-
-	// Init barrier mechanism o(´^｀)o
-	init_barriers();
-	printk("> [INIT] barriers mechanism initialization succeeded.\n");
-
-	// Init condition mechanism o(´^｀)o
-	init_conditions();
-	printk("> [INIT] condition mechanism initialization succeeded.\n");
-
-	// Init mailbox mechanism o(´^｀)o
-	init_mbox();
-	printk("> [INIT] mailbox mechanism initialization succeeded.\n");
-
-	// Init interrupt (^_^)
-	init_exception();
-	printk("> [INIT] Interrupt processing initialization succeeded.\n");
-
-	// Init system call table (0_0)
-	init_syscall();
-	printk("> [INIT] System call initialized successfully.\n");
-
-	// Init screen (QAQ)
-	init_screen();
-	printk("> [INIT] SCREEN initialization succeeded.\n");
 
 	// [p2-task4] set the first time interupt
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);

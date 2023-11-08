@@ -1,8 +1,9 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
- *            Copyright (C) 2018 Institute of Computing Technology, CAS
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
- *                                   Memory Management
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * *
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * * Copyright (C) 2018 Institute of Computing Technology, CAS
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * * Memory Management
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * *
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +23,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * * * * * * */
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  * * * * * *
+ * * * * * */
 #ifndef MM_H
 #define MM_H
 
@@ -32,7 +34,7 @@
 #define PAGE_SIZE 4096 // 4K
 #define INIT_KERNEL_STACK 0x50500000
 #define INIT_USER_STACK 0x52500000
-#define FREEMEM_KERNEL (INIT_KERNEL_STACK + PAGE_SIZE)
+#define FREEMEM_KERNEL (INIT_KERNEL_STACK + 2 * PAGE_SIZE)
 #define FREEMEM_USER INIT_USER_STACK
 
 /* Rounding; only works for n = power of two */
