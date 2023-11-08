@@ -2,6 +2,8 @@
 #include <os/sched.h>
 #include <os/list.h>
 #include <os/string.h>
+#include <os/smp.h>
+#include <printk.h>
 #include <atomic.h>
 
 mutex_lock_t mlocks[LOCK_NUM];
@@ -37,6 +39,7 @@ void spin_lock_acquire(spin_lock_t *lock)
 	/* TODO: [p2-task2] acquire spin lock */
 	while (atomic_swap(LOCKED, (ptr_t)&lock->status) == LOCKED)
 		;
+	// printl("cpu %d owns kernel lock\n\n", get_current_cpu_id());
 }
 
 void spin_lock_release(spin_lock_t *lock)

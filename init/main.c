@@ -161,7 +161,7 @@ static void init_pcb(void)
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
 	current_running = &pid0_pcb0;
 	current_running->status =
-		TASK_EXITED; // to stop pcb0 from being pushed into ready_queue
+		TASK_RUNNING; // to stop pcb0 from being pushed into ready_queue
 	asm volatile("mv tp, %0;"
 		     :
 		     : "r"(current_running)); // set tp = current_running
@@ -322,7 +322,7 @@ int main(void)
 		lock_kernel();
 		current_running = &pid0_pcb1;
 		current_running->status =
-			TASK_EXITED; // to stop pcb0 from being pushed into ready_queue
+			TASK_RUNNING; // to stop pcb0 from being pushed into ready_queue
 		asm volatile(
 			"mv tp, %0;"
 			:

@@ -6,6 +6,7 @@
 #include <os/mm.h>
 #include <os/loader.h>
 #include <os/string.h>
+#include <os/smp.h>
 #include <screen.h>
 #include <printk.h>
 #include <assert.h>
@@ -38,10 +39,17 @@ void update_current_running()
 	asm volatile("mv %0, tp;" : "=r"(current_running));
 }
 
+void list_print(list_head *queue)
+{
+	for (list_node_t *i = queue->next; i != queue; i = i->next) {
+		printl("%d ", NODE2PCB(i)->pid);
+	}
+	printl("\n");
+}
+
 void do_scheduler(void)
 {
 	// TODO: [p2-task3] Check sleep queue to wake up PCBs
-begin:
 	check_sleeping();
 	/************************************************************/
 	/* Do not touch this comment. Reserved for future projects. */
@@ -54,13 +62,14 @@ begin:
 		prev_running->status = TASK_READY;
 	}
 
-	if (list_empty(&ready_queue)) {
-		goto begin; // do nothing
-	}
 	current_running = NODE2PCB(list_front(&ready_queue));
 	current_running->status = TASK_RUNNING;
 	list_pop(&ready_queue);
 
+	// printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
+	//        prev_running->pid, current_running->pid);
+	// list_print(&ready_queue);
+	// printl("\n");
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
 	switch_to(prev_running, current_running);
