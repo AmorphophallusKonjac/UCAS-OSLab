@@ -7,7 +7,7 @@
 #include <atomic.h>
 
 mutex_lock_t mlocks[LOCK_NUM];
-mutex_lock_t mutex[LOCK_NUM];
+spin_lock_t slocks[LOCK_NUM];
 semaphore_t sema[SEMAPHORE_NUM];
 condition_t cond[CONDITION_NUM];
 barrier_t bar[BARRIER_NUM];
@@ -18,7 +18,7 @@ void init_locks(void)
 	/* TODO: [p2-task2] initialize mlocks */
 	for (int i = 0; i < LOCK_NUM; ++i) {
 		mutex_init(&mlocks[i]);
-		mutex_init(&mutex[i]);
+		spin_lock_init(&slocks[i]);
 	}
 }
 
@@ -26,6 +26,7 @@ void spin_lock_init(spin_lock_t *lock)
 {
 	/* TODO: [p2-task2] initialize spin lock */
 	atomic_swap(UNLOCKED, (ptr_t)&lock->status);
+	lock->pid = 0;
 }
 
 int spin_lock_try_acquire(spin_lock_t *lock)
@@ -39,6 +40,7 @@ void spin_lock_acquire(spin_lock_t *lock)
 	/* TODO: [p2-task2] acquire spin lock */
 	while (atomic_swap(LOCKED, (ptr_t)&lock->status) == LOCKED)
 		;
+	lock->pid = get_current_running()->pid;
 	// printl("cpu %d owns kernel lock\n\n", get_current_cpu_id());
 }
 
@@ -46,6 +48,7 @@ void spin_lock_release(spin_lock_t *lock)
 {
 	/* TODO: [p2-task2] release spin lock */
 	atomic_swap(UNLOCKED, (ptr_t)&lock->status);
+	lock->pid = 0;
 }
 
 void mutex_init(mutex_lock_t *mutex)
@@ -85,26 +88,26 @@ int do_mutex_lock_init(int key)
 	/* TODO: [p2-task2] initialize mutex lock */
 	int ret = -1;
 	for (int i = 0; i < LOCK_NUM; ++i) {
-		mutex_lock_acquire(&mutex[i]);
+		spin_lock_acquire(&slocks[i]);
 		if (mlocks[i].key == key) {
 			ret = i;
-			mutex_lock_release(&mutex[i]);
+			spin_lock_release(&slocks[i]);
 			break;
 		}
-		mutex_lock_release(&mutex[i]);
+		spin_lock_release(&slocks[i]);
 	}
 	if (ret != -1)
 		return ret;
 	for (int i = 0; i < LOCK_NUM; ++i) {
-		mutex_lock_acquire(&mutex[i]);
+		spin_lock_acquire(&slocks[i]);
 		if (mlocks[i].key == -1) {
 			ret = i;
 			mutex_destroy(&mlocks[i]);
 			mlocks[i].key = key;
-			mutex_lock_release(&mutex[i]);
+			spin_lock_release(&slocks[i]);
 			break;
 		}
-		mutex_lock_release(&mutex[i]);
+		spin_lock_release(&slocks[i]);
 	}
 	return ret;
 }

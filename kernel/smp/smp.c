@@ -29,3 +29,10 @@ void unlock_kernel()
 	/* TODO: P3-TASK3 multicore*/
 	spin_lock_release(&kernel_lock);
 }
+
+pcb_t *get_current_running()
+{
+	pcb_t *current_running;
+	asm volatile("mv %0, tp;" : "=r"(current_running));
+	return current_running;
+}

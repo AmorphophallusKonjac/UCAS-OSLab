@@ -41,6 +41,7 @@ typedef enum {
 
 typedef struct spin_lock {
   volatile lock_status_t status;
+  int pid;
 } spin_lock_t;
 
 typedef struct mutex_lock {
