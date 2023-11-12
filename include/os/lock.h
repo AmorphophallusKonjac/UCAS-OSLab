@@ -71,7 +71,7 @@ void do_destroy_pthread_lock(int pid);
 typedef struct barrier {
   // TODO [P3-TASK2 barrier]
   int key, cnt, goal, pid;
-  mutex_lock_t mutex;
+  spin_lock_t lock;
   list_head wait_list;
 } barrier_t;
 
@@ -105,7 +105,7 @@ void do_condition_destroy(int cond_idx);
 typedef struct semaphore {
   // TODO [P3-TASK2 semaphore]
   int key, value, pid;
-  mutex_lock_t mutex;
+  spin_lock_t lock;
   list_head wait_list;
 } semaphore_t;
 
@@ -127,7 +127,7 @@ typedef struct mailbox {
   char name[32];
   char buf[MAX_MBOX_LENGTH];
   int size, front, tail, user_num;
-  mutex_lock_t mutex;
+  spin_lock_t lock;
 } mailbox_t;
 
 #define MBOX_NUM 16

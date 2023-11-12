@@ -306,9 +306,9 @@ void do_process_show()
 			default:
 				assert(0);
 			}
-			printk("  MASK: %x", pcb[i].cpuMask);
+			printk("   MASK : %x", pcb[i].cpuMask);
 			if (pcb[i].status == TASK_RUNNING) {
-				printk(" Running on core %d\n", pcb[i].cpuID);
+				printk("   Running on core %d\n", pcb[i].cpuID);
 			} else {
 				printk("\n");
 			}

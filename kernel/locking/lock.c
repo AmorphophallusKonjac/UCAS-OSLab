@@ -65,8 +65,7 @@ void mutex_destroy(mutex_lock_t *mutex)
 
 void mutex_lock_acquire(mutex_lock_t *mutex)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	pcb_t *volatile current_running = get_current_running();
 	while (atomic_swap(LOCKED, (ptr_t)&mutex->lock.status) == LOCKED) {
 		do_block(&current_running->list, &mutex->block_queue);
 		do_scheduler();
@@ -144,48 +143,46 @@ int do_semaphore_init(int key, int init)
 {
 	int ret = -1;
 	for (int i = 0; i < SEMAPHORE_NUM; ++i) {
-		mutex_lock_acquire(&sema[i].mutex);
+		spin_lock_acquire(&sema[i].lock);
 		if (sema[i].key == -1) {
 			ret = i;
 			sema[i].key = key;
 			sema[i].value = init;
-			mutex_lock_release(&sema[i].mutex);
+			spin_lock_release(&sema[i].lock);
 			break;
 		}
-		mutex_lock_release(&sema[i].mutex);
+		spin_lock_release(&sema[i].lock);
 	}
 	return ret;
 }
 
 void do_semaphore_up(int sema_idx)
 {
-	mutex_lock_acquire(&sema[sema_idx].mutex);
+	spin_lock_acquire(&sema[sema_idx].lock);
 	if (!list_empty(&sema[sema_idx].wait_list)) {
 		do_unblock(list_front(&sema[sema_idx].wait_list));
 	} else {
 		++sema[sema_idx].value;
 	}
-	mutex_lock_release(&sema[sema_idx].mutex);
+	spin_lock_release(&sema[sema_idx].lock);
 }
 
 void do_semaphore_down(int sema_idx)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
-	mutex_lock_acquire(&sema[sema_idx].mutex);
+	pcb_t *volatile current_running = get_current_running();
+	spin_lock_acquire(&sema[sema_idx].lock);
 	if (sema[sema_idx].value == 0) {
 		do_block(&current_running->list, &sema[sema_idx].wait_list);
-		mutex_lock_release(&sema[sema_idx].mutex);
+		spin_lock_release(&sema[sema_idx].lock);
 		do_scheduler();
 	} else {
 		--sema[sema_idx].value;
-		mutex_lock_release(&sema[sema_idx].mutex);
+		spin_lock_release(&sema[sema_idx].lock);
 	}
 }
 
 void semaphore_init(semaphore_t *semaphore)
 {
-	mutex_init(&semaphore->mutex);
 	semaphore_destroy(semaphore);
 }
 
@@ -195,12 +192,12 @@ void semaphore_destroy(semaphore_t *semaphore)
 	semaphore->value = 0;
 	list_destroy(&semaphore->wait_list);
 	semaphore->pid = 0;
-	mutex_destroy(&semaphore->mutex);
+	spin_lock_init(&semaphore->lock);
 }
 
 void do_semaphore_destroy(int sema_idx)
 {
-	mutex_lock_acquire(&sema[sema_idx].mutex);
+	spin_lock_acquire(&sema[sema_idx].lock);
 	semaphore_destroy(&sema[sema_idx]);
 }
 
@@ -229,8 +226,7 @@ int do_condition_init(int key)
 
 void do_condition_wait(int cond_idx, int mutex_idx)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	pcb_t *volatile current_running = get_current_running();
 	do_mutex_lock_release(mutex_idx);
 	mutex_lock_acquire(&cond[cond_idx].mutex);
 	do_block(&current_running->list, &cond[cond_idx].wait_list);
@@ -286,41 +282,39 @@ int do_barrier_init(int key, int goal)
 {
 	int ret = -1;
 	for (int i = 0; i < BARRIER_NUM; ++i) {
-		mutex_lock_acquire(&bar[i].mutex);
+		spin_lock_acquire(&bar[i].lock);
 		if (bar[i].key == -1) {
 			ret = i;
 			bar[i].key = key;
 			bar[i].goal = goal;
-			mutex_lock_release(&bar[i].mutex);
+			spin_lock_release(&bar[i].lock);
 			break;
 		}
-		mutex_lock_release(&bar[i].mutex);
+		spin_lock_release(&bar[i].lock);
 	}
 	return ret;
 }
 
 void do_barrier_wait(int bar_idx)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
-	mutex_lock_acquire(&bar[bar_idx].mutex);
+	pcb_t *volatile current_running = get_current_running();
+	spin_lock_acquire(&bar[bar_idx].lock);
 	++bar[bar_idx].cnt;
 	if (bar[bar_idx].cnt >= bar[bar_idx].goal) {
 		bar[bar_idx].cnt = 0;
 		while (!list_empty(&bar[bar_idx].wait_list)) {
 			do_unblock(list_front(&bar[bar_idx].wait_list));
 		}
-		mutex_lock_release(&bar[bar_idx].mutex);
+		spin_lock_release(&bar[bar_idx].lock);
 	} else {
 		do_block(&current_running->list, &bar[bar_idx].wait_list);
-		mutex_lock_release(&bar[bar_idx].mutex);
+		spin_lock_release(&bar[bar_idx].lock);
 		do_scheduler();
 	}
 }
 
 void barrier_init(barrier_t *barrier)
 {
-	mutex_init(&barrier->mutex);
 	barrier_destroy(barrier);
 }
 
@@ -330,30 +324,30 @@ void barrier_destroy(barrier_t *barrier)
 	barrier->goal = 0;
 	barrier->key = -1;
 	list_destroy(&barrier->wait_list);
-	mutex_destroy(&barrier->mutex);
+	spin_lock_init(&barrier->lock);
 }
 
 void do_barrier_destroy(int bar_idx)
 {
-	mutex_lock_acquire(&bar[bar_idx].mutex);
+	spin_lock_acquire(&bar[bar_idx].lock);
 	barrier_destroy(&bar[bar_idx]);
 }
 
 void mbox_init(mailbox_t *mailbox)
 {
-	mutex_init(&mailbox->mutex);
 	mbox_destroy(mailbox);
 }
 
 void mbox_destroy(mailbox_t *mailbox)
 {
+	mailbox->name[0] = '\0';
 	mailbox->size = 0;
 	mailbox->front = 0;
 	mailbox->tail = 0;
 	mailbox->user_num = 0;
 	list_destroy(&mailbox->reader_wait_list);
 	list_destroy(&mailbox->writer_wait_list);
-	mutex_destroy(&mailbox->mutex);
+	spin_lock_release(&mailbox->lock);
 }
 
 void init_mbox(void)
@@ -366,52 +360,51 @@ void init_mbox(void)
 int do_mbox_open(char *name)
 {
 	for (int i = 0; i < MBOX_NUM; ++i) {
-		mutex_lock_acquire(&mbox[i].mutex);
+		spin_lock_acquire(&mbox[i].lock);
 		if (strcmp(name, mbox[i].name) == 0) {
 			++mbox[i].user_num;
-			mutex_lock_release(&mbox[i].mutex);
+			spin_lock_release(&mbox[i].lock);
 			return i;
 		}
-		mutex_lock_release(&mbox[i].mutex);
+		spin_lock_release(&mbox[i].lock);
 	}
 	int ret = -1;
 	for (int i = 0; i < MBOX_NUM; ++i) {
-		mutex_lock_acquire(&mbox[i].mutex);
+		spin_lock_acquire(&mbox[i].lock);
 		if (mbox[i].user_num == 0 || strcmp(name, mbox[i].name) == 0) {
 			++mbox[i].user_num;
 			strcpy(mbox[i].name, name);
-			mutex_lock_release(&mbox[i].mutex);
+			spin_lock_release(&mbox[i].lock);
 			ret = i;
 			break;
 		}
-		mutex_lock_release(&mbox[i].mutex);
+		spin_lock_release(&mbox[i].lock);
 	}
 	return ret;
 }
 
 void do_mbox_close(int mbox_idx)
 {
-	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	spin_lock_acquire(&mbox[mbox_idx].lock);
 	if (--mbox[mbox_idx].user_num == 0) {
 		mbox_destroy(&mbox[mbox_idx]);
 	} else {
-		mutex_lock_release(&mbox[mbox_idx].mutex);
+		spin_lock_release(&mbox[mbox_idx].lock);
 	}
 }
 
 int do_mbox_send(int mbox_idx, void *msg, int msg_length)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	pcb_t *volatile current_running = get_current_running();
 	int blocked = 0;
-	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	spin_lock_acquire(&mbox[mbox_idx].lock);
 	while (msg_length + mbox[mbox_idx].size > MAX_MBOX_LENGTH) {
 		blocked = 1;
 		do_block(&current_running->list,
 			 &mbox[mbox_idx].writer_wait_list);
-		mutex_lock_release(&mbox[mbox_idx].mutex);
+		spin_lock_release(&mbox[mbox_idx].lock);
 		do_scheduler();
-		mutex_lock_acquire(&mbox[mbox_idx].mutex);
+		spin_lock_acquire(&mbox[mbox_idx].lock);
 	}
 	mbox[mbox_idx].size += msg_length;
 	char *src = msg;
@@ -423,23 +416,22 @@ int do_mbox_send(int mbox_idx, void *msg, int msg_length)
 	while (!list_empty(&mbox[mbox_idx].reader_wait_list)) {
 		do_unblock(list_front(&mbox[mbox_idx].reader_wait_list));
 	}
-	mutex_lock_release(&mbox[mbox_idx].mutex);
+	spin_lock_release(&mbox[mbox_idx].lock);
 	return blocked;
 }
 
 int do_mbox_recv(int mbox_idx, void *msg, int msg_length)
 {
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	pcb_t *volatile current_running = get_current_running();
 	int blocked = 0;
-	mutex_lock_acquire(&mbox[mbox_idx].mutex);
+	spin_lock_acquire(&mbox[mbox_idx].lock);
 	while (mbox[mbox_idx].size < msg_length) {
 		blocked = 1;
 		do_block(&current_running->list,
 			 &mbox[mbox_idx].reader_wait_list);
-		mutex_lock_release(&mbox[mbox_idx].mutex);
+		spin_lock_release(&mbox[mbox_idx].lock);
 		do_scheduler();
-		mutex_lock_acquire(&mbox[mbox_idx].mutex);
+		spin_lock_acquire(&mbox[mbox_idx].lock);
 	}
 	mbox[mbox_idx].size -= msg_length;
 	char *dest = msg;
@@ -451,6 +443,6 @@ int do_mbox_recv(int mbox_idx, void *msg, int msg_length)
 	while (!list_empty(&mbox[mbox_idx].writer_wait_list)) {
 		do_unblock(list_front(&mbox[mbox_idx].writer_wait_list));
 	}
-	mutex_lock_release(&mbox[mbox_idx].mutex);
+	spin_lock_release(&mbox[mbox_idx].lock);
 	return blocked;
 }
