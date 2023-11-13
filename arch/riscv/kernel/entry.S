@@ -182,7 +182,7 @@ ENDPROC(switch_to)
 ENTRY(ret_from_exception)
   /* TODO: [p2-task3] restore context via provided macro and return to sepc */
   /* HINT: remember to check your sp, does it point to the right address? */
-                                            
+  call check_killed                            
   # call unlock_kernel
   
   RESTORE_CONTEXT

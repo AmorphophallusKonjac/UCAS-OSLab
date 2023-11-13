@@ -111,10 +111,10 @@ void do_scheduler(void)
 	cpu[cpuID].current_running = pick_next_task(prev_running, cpuID);
 	cpu[cpuID].current_running->switch_from = prev_running;
 	cpu[cpuID].pid = cpu[cpuID].current_running->pid;
-	printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
-	       prev_running->pid, cpu[cpuID].current_running->pid);
-	list_print(&ready_queue);
-	printl("\n");
+	// printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
+	//        prev_running->pid, cpu[cpuID].current_running->pid);
+	// list_print(&ready_queue);
+	// printl("\n");
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
 	switch_to(prev_running, cpu[cpuID].current_running);
@@ -265,31 +265,19 @@ pid_t do_exec(char *name, int argc, char *argv[])
 int do_kill(pid_t pid)
 {
 	/* TODO: solve problem of kill task running on other core */
-	uint64_t cpuID = get_current_cpu_id();
-	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
 		if (pcb[i].pid == pid) {
 			pcbidx = i;
 			break;
 		}
+		spin_lock_release(&pcb[i].lock);
 	}
 	if (pcbidx == -1)
 		return 0;
-	assert(&pcb[pcbidx] != current_running);
-	while (!list_empty(&pcb[pcbidx].wait_list)) {
-		do_unblock(list_front(&pcb[pcbidx].wait_list));
-	}
-	list_del(&pcb[pcbidx].list);
-	do_destroy_pthread_lock(pid);
-	pcb[pcbidx].status = TASK_EXITED;
-	pcb[pcbidx].cursor_x = 0;
-	pcb[pcbidx].cursor_y = 0;
-	pcb[pcbidx].kernel_sp = pcb[pcbidx].kernel_stack_base;
-	pcb[pcbidx].user_sp = pcb[pcbidx].user_stack_base;
-	pcb[pcbidx].pid = 0;
-	pcb[pcbidx].tid = 0;
-	pcb[pcbidx].wakeup_time = 0;
+	pcb[pcbidx].killed = 1;
+	spin_lock_release(&pcb[pcbidx].lock);
 	return 1;
 }
 
@@ -298,6 +286,17 @@ pid_t do_getpid()
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	return current_running->pid;
+}
+
+void check_killed()
+{
+	pcb_t *current_running = get_current_running();
+	spin_lock_acquire(&current_running->lock);
+	if (current_running->killed) {
+		spin_lock_release(&current_running->lock);
+		do_exit();
+	}
+	spin_lock_release(&current_running->lock);
 }
 
 void do_exit(void)
@@ -318,6 +317,7 @@ void do_exit(void)
 	current_running->pid = 0;
 	current_running->tid = 0;
 	current_running->wakeup_time = 0;
+	current_running->killed = 0;
 	do_scheduler();
 }
 

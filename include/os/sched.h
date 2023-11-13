@@ -152,6 +152,7 @@ extern int do_taskset(pid_t pid, int mask);
 extern void forkret();
 void release_lock(void);
 void yield(void);
+void check_killed();
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/
