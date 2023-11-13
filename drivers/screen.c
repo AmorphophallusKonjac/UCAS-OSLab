@@ -66,6 +66,7 @@ void init_screen(void)
 
 void screen_clear(void)
 {
+	spin_lock_acquire(&print_lock);
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int i, j;
@@ -76,26 +77,31 @@ void screen_clear(void)
 	}
 	current_running->cursor_x = 0;
 	current_running->cursor_y = 0;
+	spin_lock_release(&print_lock);
 	screen_reflush();
 }
 
 void screen_move_cursor(int x, int y)
 {
+	spin_lock_acquire(&print_lock);
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	current_running->cursor_x = x;
 	current_running->cursor_y = y;
 	vt100_move_cursor(x, y);
+	spin_lock_release(&print_lock);
 }
 
 void screen_write(char *buff)
 {
+	spin_lock_acquire(&print_lock);
 	int i = 0;
 	int l = strlen(buff);
 
 	for (i = 0; i < l; i++) {
 		screen_write_ch(buff[i]);
 	}
+	spin_lock_release(&print_lock);
 }
 
 /*
@@ -106,6 +112,7 @@ void screen_write(char *buff)
  */
 void screen_reflush(void)
 {
+	spin_lock_acquire(&print_lock);
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int i, j;
@@ -126,10 +133,12 @@ void screen_reflush(void)
 
 	/* recover cursor position */
 	vt100_move_cursor(current_running->cursor_x, current_running->cursor_y);
+	spin_lock_release(&print_lock);
 }
 
 void screen_backspace(void)
 {
+	spin_lock_acquire(&print_lock);
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	if (current_running->cursor_x <= 0)
@@ -137,9 +146,12 @@ void screen_backspace(void)
 	vt100_move_cursor(--current_running->cursor_x,
 			  current_running->cursor_y);
 	screen_write_ch(' ');
+	spin_lock_release(&print_lock);
 	screen_reflush();
+	spin_lock_acquire(&print_lock);
 	vt100_move_cursor(--current_running->cursor_x,
 			  current_running->cursor_y);
+	spin_lock_release(&print_lock);
 }
 
 void screen_hidden_cursor(void)

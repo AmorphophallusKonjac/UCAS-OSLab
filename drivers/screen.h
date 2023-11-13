@@ -31,6 +31,10 @@
 #ifndef INCLUDE_CONSOLE_H_
 #define INCLUDE_CONSOLE_H_
 
+#include <os/lock.h>
+
+spin_lock_t print_lock;
+
 /* configuring screen properties */
 void init_screen(void);
 

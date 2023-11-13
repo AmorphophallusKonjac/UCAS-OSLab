@@ -45,6 +45,7 @@
 #include <os/sched.h>
 #include <os/irq.h>
 #include <os/kernel.h>
+#include <os/lock.h>
 
 static unsigned int mini_strlen(const char *s)
 {

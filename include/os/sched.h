@@ -77,6 +77,8 @@ typedef struct pcb {
   list_node_t list;
   list_head wait_list;
 
+  spin_lock_t list_lock;
+
   uint64_t cpuID;
   int cpuMask;
 
@@ -100,6 +102,9 @@ typedef struct pcb {
 
   /* the pcb switch from */
   struct pcb *switch_from;
+
+  /* set 1 if killed */
+  int killed;
 
 } pcb_t, tcb_t;
 

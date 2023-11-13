@@ -136,7 +136,14 @@ static void init_pcb(void)
 {
 	/* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
 	char needed_task_name[][32] = { "shell" };
-
+	pid0_pcb[0].kernel_sp =
+		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
+	pid0_pcb[1].kernel_sp =
+		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
+	pid0_pcb[0].user_sp =
+		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
+	pid0_pcb[1].user_sp =
+		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
 		pcb[i].kernel_stack_base = allocKernelPage(STACK_PAGE_NUM) +
 					   STACK_PAGE_NUM * PAGE_SIZE;

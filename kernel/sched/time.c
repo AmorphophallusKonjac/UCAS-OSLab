@@ -1,5 +1,6 @@
 #include <os/list.h>
 #include <os/sched.h>
+#include <os/smp.h>
 #include <type.h>
 
 uint64_t time_elapsed = 0;
@@ -39,13 +40,16 @@ void check_sleeping(void)
 	     node_ptr != &sleep_queue;) {
 		list_node_t *next_node_ptr = node_ptr->next;
 		pcb_t *pcb_ptr = NODE2PCB(node_ptr);
-		spin_lock_acquire(&pcb_ptr->lock);
-		if (pcb_ptr->wakeup_time <= current_time) {
-			pcb_ptr->status = TASK_READY;
-			list_del(node_ptr);
-			spin_lock_acquire(&ready_queue_lock);
-			list_push(&ready_queue, node_ptr);
-			spin_lock_release(&ready_queue_lock);
+		if (pcb_ptr != get_current_running()) {
+			spin_lock_acquire(&pcb_ptr->lock);
+			if (pcb_ptr->wakeup_time <= current_time) {
+				pcb_ptr->status = TASK_READY;
+				list_del(node_ptr);
+				spin_lock_acquire(&ready_queue_lock);
+				list_push(&ready_queue, node_ptr);
+				spin_lock_release(&ready_queue_lock);
+				spin_lock_release(&pcb_ptr->lock);
+			}
 			spin_lock_release(&pcb_ptr->lock);
 		}
 		node_ptr = next_node_ptr;

@@ -59,17 +59,22 @@ pcb_t *pick_next_task(pcb_t *prev_running, uint64_t cpuID)
 	for (list_node_t *ptr = list_front(&ready_queue);
 	     ptr != &ready_queue && ptr != 0; ptr = ptr->next) {
 		pcb_t *task = NODE2PCB(ptr);
-		if (prev_running != task) {
-			spin_lock_acquire(&task->lock);
-		}
-		if (task->cpuMask & (1 << cpuID)) {
-			next_task = task;
-			next_task->status = TASK_RUNNING;
-			next_task->cpuID = cpuID;
-			list_del(ptr);
-			break;
-		}
-		if (prev_running != task) {
+		if (task == prev_running) {
+			if (task->cpuMask & (1 << cpuID)) {
+				next_task = task;
+				next_task->status = TASK_RUNNING;
+				next_task->cpuID = cpuID;
+				list_del(ptr);
+				break;
+			}
+		} else if (spin_lock_try_acquire(&task->lock)) {
+			if (task->cpuMask & (1 << cpuID)) {
+				next_task = task;
+				next_task->status = TASK_RUNNING;
+				next_task->cpuID = cpuID;
+				list_del(ptr);
+				break;
+			}
 			spin_lock_release(&task->lock);
 		}
 	}
