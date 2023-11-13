@@ -32,6 +32,7 @@
 #define INCLUDE_SCHEDULER_H_
 
 #include <os/list.h>
+#include <os/lock.h>
 #include <type.h>
 
 #define NUM_MAX_TASK 16
@@ -94,6 +95,12 @@ typedef struct pcb {
   /* time(seconds) to wake up sleeping PCB */
   uint64_t wakeup_time;
 
+  /* lock to protect pcb */
+  spin_lock_t lock;
+
+  /* the pcb switch from */
+  struct pcb *switch_from;
+
 } pcb_t, tcb_t;
 
 /* CPU */
@@ -104,9 +111,11 @@ typedef struct cpu {
 
 /* ready queue to run */
 extern list_head ready_queue;
+extern spin_lock_t ready_queue_lock;
 
 /* sleep queue to be blocked in */
 extern list_head sleep_queue;
+extern spin_lock_t sleep_queue_lock;
 
 extern cpu_t cpu[NUM_MAX_CPU];
 
@@ -132,6 +141,12 @@ void do_unblock(list_node_t *);
 #define NODE2PCB(nodeptr) ((pcb_t *)((void *)(nodeptr)-32))
 
 extern int do_taskset(pid_t pid, int mask);
+
+// [p3-task5]
+/* new fake return entrypoint */
+extern void forkret();
+void release_lock(void);
+void yield(void);
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/

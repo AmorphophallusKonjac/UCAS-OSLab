@@ -34,15 +34,21 @@ void check_sleeping(void)
 {
 	// TODO: [p2-task3] Pick out tasks that should wake up from the sleep queue
 	uint64_t current_time = get_timer();
+	spin_lock_acquire(&sleep_queue_lock);
 	for (list_node_t *node_ptr = sleep_queue.next;
 	     node_ptr != &sleep_queue;) {
 		list_node_t *next_node_ptr = node_ptr->next;
 		pcb_t *pcb_ptr = NODE2PCB(node_ptr);
+		spin_lock_acquire(&pcb_ptr->lock);
 		if (pcb_ptr->wakeup_time <= current_time) {
 			pcb_ptr->status = TASK_READY;
 			list_del(node_ptr);
+			spin_lock_acquire(&ready_queue_lock);
 			list_push(&ready_queue, node_ptr);
+			spin_lock_release(&ready_queue_lock);
+			spin_lock_release(&pcb_ptr->lock);
 		}
 		node_ptr = next_node_ptr;
 	}
+	spin_lock_release(&sleep_queue_lock);
 }

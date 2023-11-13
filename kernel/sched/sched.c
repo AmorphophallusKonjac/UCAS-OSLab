@@ -33,6 +33,9 @@ pcb_t pid0_pcb[2] = { { .pid = 0,
 LIST_HEAD(ready_queue);
 LIST_HEAD(sleep_queue);
 
+spin_lock_t ready_queue_lock, sleep_queue_lock;
+// TODO: use ready_queue_lock
+
 /* current running task PCB */
 // pcb_t *volatile current_running;
 
@@ -49,12 +52,16 @@ void list_print(list_head *queue)
 	printl("\n");
 }
 
-pcb_t *pick_next_task(uint64_t cpuID)
+pcb_t *pick_next_task(pcb_t *prev_running, uint64_t cpuID)
 {
 	pcb_t *next_task = NULL;
+	spin_lock_acquire(&ready_queue_lock);
 	for (list_node_t *ptr = list_front(&ready_queue);
 	     ptr != &ready_queue && ptr != 0; ptr = ptr->next) {
 		pcb_t *task = NODE2PCB(ptr);
+		if (prev_running != task) {
+			spin_lock_acquire(&task->lock);
+		}
 		if (task->cpuMask & (1 << cpuID)) {
 			next_task = task;
 			next_task->status = TASK_RUNNING;
@@ -62,13 +69,26 @@ pcb_t *pick_next_task(uint64_t cpuID)
 			list_del(ptr);
 			break;
 		}
+		if (prev_running != task) {
+			spin_lock_release(&task->lock);
+		}
 	}
+	spin_lock_release(&ready_queue_lock);
 	return (next_task == NULL) ? &pid0_pcb[cpuID] : next_task;
+}
+
+void yield(void)
+{
+	pcb_t *current_running = get_current_running();
+	spin_lock_acquire(&current_running->lock);
+	do_scheduler();
 }
 
 void do_scheduler(void)
 {
-	uint64_t cpuID = get_current_cpu_id();
+	/* assume hold current_running lock before enter do_shceduler */
+	pcb_t *current_running = get_current_running();
+	uint64_t cpuID = current_running->cpuID;
 	// TODO: [p2-task3] Check sleep queue to wake up PCBs
 	check_sleeping();
 	/************************************************************/
@@ -76,20 +96,25 @@ void do_scheduler(void)
 	/************************************************************/
 
 	// TODO: [p2-task1] Modify the current_running pointer.
-	pcb_t *prev_running = cpu[cpuID].current_running;
+	pcb_t *prev_running = current_running;
 	if (prev_running->status == TASK_RUNNING) {
+		spin_lock_acquire(&ready_queue_lock);
 		list_push(&ready_queue, &prev_running->list);
+		spin_lock_release(&ready_queue_lock);
 		prev_running->status = TASK_READY;
 	}
-	cpu[cpuID].current_running = pick_next_task(cpuID);
+	cpu[cpuID].current_running = pick_next_task(prev_running, cpuID);
+	cpu[cpuID].current_running->switch_from = prev_running;
 	cpu[cpuID].pid = cpu[cpuID].current_running->pid;
-	// printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
-	//        prev_running->pid, current_running->pid);
-	// list_print(&ready_queue);
-	// printl("\n");
+	printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
+	       prev_running->pid, cpu[cpuID].current_running->pid);
+	list_print(&ready_queue);
+	printl("\n");
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
 	switch_to(prev_running, cpu[cpuID].current_running);
+	spin_lock_release(&prev_running->switch_from->lock);
+	spin_lock_release(&prev_running->lock);
 }
 
 void do_sleep(uint32_t sleep_time)
@@ -101,9 +126,12 @@ void do_sleep(uint32_t sleep_time)
 	// 1. block the current_running
 	// 2. set the wake up time for the blocked task
 	// 3. reschedule because the current_running is blocked.
+	spin_lock_acquire(&current_running->lock);
 	current_running->status = TASK_BLOCKED;
 	current_running->wakeup_time = get_timer() + sleep_time;
+	spin_lock_acquire(&sleep_queue_lock);
 	list_push(&sleep_queue, &current_running->list);
+	spin_lock_release(&sleep_queue_lock);
 	do_scheduler();
 }
 
@@ -117,9 +145,13 @@ void do_block(list_node_t *pcb_node, list_head *queue)
 void do_unblock(list_node_t *pcb_node)
 {
 	// TODO: [p2-task2] unblock the `pcb` from the block queue
+	spin_lock_acquire(&NODE2PCB(pcb_node)->lock);
 	NODE2PCB(pcb_node)->status = TASK_READY;
 	list_del(pcb_node);
+	spin_lock_acquire(&ready_queue_lock);
 	list_push(&ready_queue, pcb_node);
+	spin_lock_release(&ready_queue_lock);
+	spin_lock_release(&NODE2PCB(pcb_node)->lock);
 }
 
 static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
@@ -166,12 +198,21 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 	for (int i = 0; i < 14; ++i)
 		pt_switchto->regs[i] = (reg_t)0;
 	// [p2-task1]
-	// pt_switchto->regs[0] = (reg_t) entry_point;         // ra
+	// pt_switchto->regs[0] = (reg_t)entry_point;         // ra
 	// [p2-task3]
-	pt_switchto->regs[0] = (reg_t)ret_from_exception; // ra
+	// pt_switchto->regs[0] = (reg_t)ret_from_exception;   // ra
+	// [p3-task5]
+	pt_switchto->regs[0] = (reg_t)forkret; // ra
 	pt_switchto->regs[1] = (reg_t)pt_switchto; // sp
 
 	pcb->kernel_sp = (reg_t)pt_switchto;
+}
+
+void release_lock(void)
+{
+	pcb_t *current_running = get_current_running();
+	spin_lock_release(&current_running->switch_from->lock);
+	spin_lock_release(&current_running->lock);
 }
 
 #ifdef S_CORE
@@ -190,10 +231,12 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	}
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
 		if (pcb[i].status == TASK_EXITED) {
 			pcbidx = i;
 			break;
 		}
+		spin_lock_release(&pcb[i].lock);
 	}
 	assert(pcbidx != -1);
 	init_pcb_stack(pcb[pcbidx].kernel_stack_base,
@@ -206,7 +249,10 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	pcb[pcbidx].tid = 0;
 	pcb[pcbidx].wakeup_time = 0;
 	pcb[pcbidx].cpuMask = current_running->cpuMask;
+	spin_lock_acquire(&ready_queue_lock);
 	list_push(&ready_queue, &pcb[pcbidx].list);
+	spin_lock_release(&ready_queue_lock);
+	spin_lock_release(&pcb[pcbidx].lock);
 	return pcb[pcbidx].pid;
 }
 #endif
@@ -253,6 +299,7 @@ void do_exit(void)
 {
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	spin_lock_acquire(&current_running->lock);
 	while (!list_empty(&current_running->wait_list)) {
 		do_unblock(list_front(&current_running->wait_list));
 	}
@@ -275,15 +322,19 @@ int do_waitpid(pid_t pid)
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
 		if (pcb[i].pid == pid) {
 			pcbidx = i;
 			break;
 		}
+		spin_lock_release(&pcb[i].lock);
 	}
 	if (pcbidx == -1)
 		return 0;
+	spin_lock_acquire(&current_running->lock);
 	current_running->status = TASK_BLOCKED;
 	do_block(&current_running->list, &pcb[pcbidx].wait_list);
+	spin_lock_release(&pcb[pcbidx].lock);
 	do_scheduler();
 	return pid;
 }
@@ -291,6 +342,7 @@ int do_waitpid(pid_t pid)
 void do_process_show()
 {
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
 		if (pcb[i].status != TASK_EXITED) {
 			printk("[%d] PID : %d   STATUS : ", i, pcb[i].pid);
 			switch (pcb[i].status) {
@@ -313,16 +365,20 @@ void do_process_show()
 				printk("\n");
 			}
 		}
+		spin_lock_release(&pcb[i].lock);
 	}
 }
 
 int do_taskset(pid_t pid, int mask)
 {
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
 		if (pid == pcb[i].pid) {
 			pcb[i].cpuMask = mask;
+			spin_lock_release(&pcb[i].lock);
 			return 0;
 		}
+		spin_lock_release(&pcb[i].lock);
 	}
 	return 1;
 }

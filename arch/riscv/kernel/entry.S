@@ -67,7 +67,7 @@
 
 .macro RESTORE_CONTEXT
   /* TODO: Restore all general purpose registers and sepc, sstatus */
-  /* HINT: Pay attention to sp again! */
+  /* HINT: Pay attention to sp again! */ 
   ld t1, OFFSET_REG_SSTATUS  (sp)
   ld t2, OFFSET_REG_SEPC     (sp)
   csrw CSR_SSTATUS, t1
@@ -182,7 +182,7 @@ ENDPROC(switch_to)
 ENTRY(ret_from_exception)
   /* TODO: [p2-task3] restore context via provided macro and return to sepc */
   /* HINT: remember to check your sp, does it point to the right address? */
-  
+                                            
   call unlock_kernel
   
   RESTORE_CONTEXT
@@ -222,3 +222,8 @@ ENTRY(clear_SIP)
   csrw CSR_SIP, zero
   jr ra 
 ENDPROC(clear_SIP)
+
+ENTRY(forkret)
+  call release_lock
+  j ret_from_exception 
+ENDPROC(forkret)

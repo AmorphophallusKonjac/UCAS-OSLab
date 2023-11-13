@@ -7,7 +7,6 @@
 #include <atomic.h>
 
 mutex_lock_t mlocks[LOCK_NUM];
-spin_lock_t slocks[LOCK_NUM];
 semaphore_t sema[SEMAPHORE_NUM];
 condition_t cond[CONDITION_NUM];
 barrier_t bar[BARRIER_NUM];
@@ -18,7 +17,6 @@ void init_locks(void)
 	/* TODO: [p2-task2] initialize mlocks */
 	for (int i = 0; i < LOCK_NUM; ++i) {
 		mutex_init(&mlocks[i]);
-		spin_lock_init(&slocks[i]);
 	}
 }
 
@@ -60,6 +58,7 @@ void mutex_init(mutex_lock_t *mutex)
 void mutex_destroy(mutex_lock_t *mutex)
 {
 	mutex->key = -1;
+	spin_lock_init(&mutex->lk);
 	mutex_lock_release(mutex);
 }
 
@@ -67,7 +66,10 @@ void mutex_lock_acquire(mutex_lock_t *mutex)
 {
 	pcb_t *volatile current_running = get_current_running();
 	while (atomic_swap(LOCKED, (ptr_t)&mutex->lock.status) == LOCKED) {
+		spin_lock_acquire(&current_running->lock);
+		spin_lock_acquire(&mutex->lk);
 		do_block(&current_running->list, &mutex->block_queue);
+		spin_lock_release(&mutex->lk);
 		do_scheduler();
 	}
 	mutex->pid = current_running->pid;
@@ -87,26 +89,26 @@ int do_mutex_lock_init(int key)
 	/* TODO: [p2-task2] initialize mutex lock */
 	int ret = -1;
 	for (int i = 0; i < LOCK_NUM; ++i) {
-		spin_lock_acquire(&slocks[i]);
+		spin_lock_acquire(&mlocks[i].lk);
 		if (mlocks[i].key == key) {
 			ret = i;
-			spin_lock_release(&slocks[i]);
+			spin_lock_release(&mlocks[i].lk);
 			break;
 		}
-		spin_lock_release(&slocks[i]);
+		spin_lock_release(&mlocks[i].lk);
 	}
 	if (ret != -1)
 		return ret;
 	for (int i = 0; i < LOCK_NUM; ++i) {
-		spin_lock_acquire(&slocks[i]);
+		spin_lock_acquire(&mlocks[i].lk);
 		if (mlocks[i].key == -1) {
 			ret = i;
 			mutex_destroy(&mlocks[i]);
 			mlocks[i].key = key;
-			spin_lock_release(&slocks[i]);
+			spin_lock_release(&mlocks[i].lk);
 			break;
 		}
-		spin_lock_release(&slocks[i]);
+		spin_lock_release(&mlocks[i].lk);
 	}
 	return ret;
 }
@@ -172,6 +174,7 @@ void do_semaphore_down(int sema_idx)
 	pcb_t *volatile current_running = get_current_running();
 	spin_lock_acquire(&sema[sema_idx].lock);
 	if (sema[sema_idx].value == 0) {
+		spin_lock_acquire(&current_running->lock);
 		do_block(&current_running->list, &sema[sema_idx].wait_list);
 		spin_lock_release(&sema[sema_idx].lock);
 		do_scheduler();
@@ -307,6 +310,7 @@ void do_barrier_wait(int bar_idx)
 		}
 		spin_lock_release(&bar[bar_idx].lock);
 	} else {
+		spin_lock_acquire(&current_running->lock);
 		do_block(&current_running->list, &bar[bar_idx].wait_list);
 		spin_lock_release(&bar[bar_idx].lock);
 		do_scheduler();
@@ -400,6 +404,7 @@ int do_mbox_send(int mbox_idx, void *msg, int msg_length)
 	spin_lock_acquire(&mbox[mbox_idx].lock);
 	while (msg_length + mbox[mbox_idx].size > MAX_MBOX_LENGTH) {
 		blocked = 1;
+		spin_lock_acquire(&current_running->lock);
 		do_block(&current_running->list,
 			 &mbox[mbox_idx].writer_wait_list);
 		spin_lock_release(&mbox[mbox_idx].lock);
@@ -427,6 +432,7 @@ int do_mbox_recv(int mbox_idx, void *msg, int msg_length)
 	spin_lock_acquire(&mbox[mbox_idx].lock);
 	while (mbox[mbox_idx].size < msg_length) {
 		blocked = 1;
+		spin_lock_acquire(&current_running->lock);
 		do_block(&current_running->list,
 			 &mbox[mbox_idx].reader_wait_list);
 		spin_lock_release(&mbox[mbox_idx].lock);

@@ -140,6 +140,9 @@ dirs:
 format:
 	find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
 
+tail:
+	tail -f ~/OSLab-RISC-V/oslab-log.txt
+
 clean:
 	rm -rf $(DIR_BUILD)
 

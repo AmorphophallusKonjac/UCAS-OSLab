@@ -59,7 +59,7 @@ static void init_jmptab(void)
 	jmptab[READ_FDT] = (long (*)())read_fdt;
 	jmptab[MOVE_CURSOR] = (long (*)())screen_move_cursor;
 	jmptab[PRINT] = (long (*)())printk;
-	jmptab[YIELD] = (long (*)())do_scheduler;
+	jmptab[YIELD] = (long (*)())yield;
 	jmptab[MUTEX_INIT] = (long (*)())do_mutex_lock_init;
 	jmptab[MUTEX_ACQ] = (long (*)())do_mutex_lock_acquire;
 	jmptab[MUTEX_RELEASE] = (long (*)())do_mutex_lock_release;
@@ -123,7 +123,9 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 	// [p2-task1]
 	// pt_switchto->regs[0] = (reg_t) entry_point;         // ra
 	// [p2-task3]
-	pt_switchto->regs[0] = (reg_t)ret_from_exception; // ra
+	// pt_switchto->regs[0] = (reg_t)ret_from_exception; // ra
+	// [p3-task5]
+	pt_switchto->regs[0] = (reg_t)forkret; // ra
 	pt_switchto->regs[1] = (reg_t)pt_switchto; // sp
 
 	pcb->kernel_sp = (reg_t)pt_switchto;
@@ -145,6 +147,7 @@ static void init_pcb(void)
 		pcb[i].list.prev = &pcb[i].list;
 		pcb[i].wait_list.next = &pcb[i].wait_list;
 		pcb[i].wait_list.prev = &pcb[i].wait_list;
+		spin_lock_init(&pcb[i].lock);
 	}
 
 	for (int i = 0; i < sizeof(needed_task_name) / 32; i++) {
@@ -203,7 +206,7 @@ static void init_syscall(void)
 	syscall[SYSCALL_WAITPID] = (long (*)())do_waitpid;
 	syscall[SYSCALL_PS] = (long (*)())do_process_show;
 	syscall[SYSCALL_GETPID] = (long (*)())do_getpid;
-	syscall[SYSCALL_YIELD] = (long (*)())do_scheduler;
+	syscall[SYSCALL_YIELD] = (long (*)())yield;
 
 	syscall[SYSCALL_WRITE] = (long (*)())screen_write;
 	syscall[SYSCALL_CURSOR] = (long (*)())screen_move_cursor;
@@ -234,7 +237,7 @@ static void init_syscall(void)
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
-	syscall[SYSCALL_THREAD_YIELD] = (long (*)())do_scheduler;
+	syscall[SYSCALL_THREAD_YIELD] = (long (*)())yield;
 	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
 	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;
 	syscall[SYSCALL_SCREEN_CLEAR] = (long (*)())screen_clear;
