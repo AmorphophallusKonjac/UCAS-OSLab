@@ -8,15 +8,17 @@
 
 int main(int argc, char *argv[])
 {
+	sys_waitpid(atoi(argv[2]));
+
 	int print_location = (argc == 1) ? 0 : atoi(argv[1]);
 	int mutex_idx = sys_mutex_init(LOCK_KEY);
 	clock_t begin = clock();
 	for (int i = 0; i < 10000; ++i) {
 		sys_mutex_acquire(mutex_idx);
 		sys_mutex_release(mutex_idx);
-		sys_move_cursor(0, print_location);
-		printf("fine-grained-lock %d acquire and release lock %d times",
-		       sys_getpid(), i + 1);
+		// sys_move_cursor(0, print_location);
+		// printf("fine-grained-lock %d acquire and release lock %d times",
+		//    sys_getpid(), i + 1);
 	}
 	clock_t end = clock();
 	sys_move_cursor(0, print_location + 1);
