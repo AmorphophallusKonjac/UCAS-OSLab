@@ -35,7 +35,7 @@ static inline long call_jmptab(long which, long arg0, long arg1, long arg2, long
 
 static inline void bios_putstr(char *str)
 {
-    call_jmptab(CONSOLE_PUTSTR, (long)kva2pa((uintptr_t)str), 0, 0, 0, 0);
+    call_jmptab(CONSOLE_PUTSTR, (long)str, 0, 0, 0, 0);
 }
 
 static inline void bios_putchar(int ch)
@@ -66,7 +66,7 @@ static inline int bios_sd_write(unsigned mem_address, unsigned num_of_blocks, \
 
 static inline void bios_logging(char *str)
 {
-    call_jmptab(QEMU_LOGGING, (long)kva2pa((uintptr_t)str), 0, 0, 0, 0);
+    call_jmptab(QEMU_LOGGING, (long)str, 0, 0, 0, 0);
 }
 
 static inline void bios_set_timer(uint64_t stime_value)
