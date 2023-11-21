@@ -38,7 +38,7 @@ void spin_lock_acquire(spin_lock_t *lock)
 	/* TODO: [p2-task2] acquire spin lock */
 	while (atomic_swap(LOCKED, (ptr_t)&lock->status) == LOCKED)
 		;
-	lock->pid = get_current_running()->pid;
+	// lock->pid = get_current_running()->pid;
 	// printl("cpu %d owns kernel lock\n\n", get_current_cpu_id());
 }
 

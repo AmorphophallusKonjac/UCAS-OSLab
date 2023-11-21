@@ -36,13 +36,13 @@
 #define MEM_SIZE 32
 #define PAGE_SIZE 4096 // 4K
 #define INIT_KERNEL_STACK 0xffffffc052000000
-#define FREEMEM_KERNEL (INIT_KERNEL_STACK + PAGE_SIZE)
+#define FREEMEM_KERNEL INIT_KERNEL_STACK
 
 /* Rounding; only works for n = power of two */
 #define ROUND(a, n) (((((uint64_t)(a)) + (n)-1)) & ~((n)-1))
 #define ROUNDDOWN(a, n) (((uint64_t)(a)) & ~((n)-1))
 
-extern ptr_t allocPage(int numPage);
+extern ptr_t allocPage();
 // TODO [P4-task1] */
 void freePage(ptr_t baseAddr);
 
@@ -65,5 +65,7 @@ extern uintptr_t alloc_page_helper(uintptr_t va, uintptr_t pgdir);
 // TODO [P4-task4]: shm_page_get/dt */
 uintptr_t shm_page_get(int key);
 void shm_page_dt(uintptr_t addr);
+
+void initkmem();
 
 #endif /* MM_H */

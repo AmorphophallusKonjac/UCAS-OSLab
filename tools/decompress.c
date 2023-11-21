@@ -3,7 +3,7 @@
 extern struct libdeflate_decompressor global_decompressor;
 
 #define DECOM_KERNEL_LOC 0x54000000
-#define KERNEL 0x50201000
+#define KERNEL 0x50202000
 #define OS_SIZE_LOC 0x502001fc
 #define SECTOR_SIZE 512
 #define OUT_BYTES_AVAIL 2097152

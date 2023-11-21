@@ -11,6 +11,7 @@
 #include <printk.h>
 #include <assert.h>
 #include <csr.h>
+#include <pgtable.h>
 
 extern void ret_from_exception();
 pcb_t pcb[NUM_MAX_TASK];

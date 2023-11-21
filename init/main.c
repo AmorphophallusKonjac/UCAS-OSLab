@@ -12,17 +12,19 @@
 #include <os/time.h>
 #include <os/smp.h>
 #include <os/irq.h>
+#include <os/page.h>
 #include <sys/syscall.h>
 #include <screen.h>
 #include <printk.h>
 #include <assert.h>
 #include <type.h>
 #include <csr.h>
+#include <pgtable.h>
 
 extern void ret_from_exception();
 extern void clear_SIP();
 #define VERSION_BUF 50
-#define OS_SIZE_LOC 0x502001fc
+#define OS_SIZE_LOC 0xffffffc0502001fclu
 #define STACK_PAGE_NUM 1
 
 int version = 2; // version must between 0 and 9
@@ -77,7 +79,8 @@ static void init_task_info(void)
 	uint64_t taskinfo_offset = *(uint32_t *)(OS_SIZE_LOC - 0xC);
 	taskinfo_offset = taskinfo_offset % (uint64_t)(0x200);
 	task_num = *(uint16_t *)(OS_SIZE_LOC + 0x2);
-	memcpy((uint8_t *)tasks, (uint8_t *)(0x52000000 + taskinfo_offset),
+	memcpy((uint8_t *)tasks,
+	       (uint8_t *)(0xffffffc052000000lu + taskinfo_offset),
 	       taskinfo_size);
 }
 
@@ -136,25 +139,24 @@ static void init_pcb(void)
 {
 	/* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
 	char needed_task_name[][32] = { "shell" };
-	pid0_pcb[0].kernel_sp =
-		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
-	pid0_pcb[1].kernel_sp =
-		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
-	pid0_pcb[0].user_sp =
-		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
-	pid0_pcb[1].user_sp =
-		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE;
+	pid0_pcb[0].kernel_sp = allocPage() + PAGE_SIZE;
+	pid0_pcb[0].user_sp = pid0_pcb[0].kernel_sp;
+	pid0_pcb[0].pagedir = initPgtable();
+
+	pid0_pcb[1].kernel_sp = allocPage() + PAGE_SIZE;
+	pid0_pcb[1].user_sp = pid0_pcb[1].kernel_sp;
+	pid0_pcb[1].pagedir = initPgtable();
+
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
-		pcb[i].kernel_stack_base = allocKernelPage(STACK_PAGE_NUM) +
-					   STACK_PAGE_NUM * PAGE_SIZE;
-		pcb[i].user_stack_base = allocUserPage(STACK_PAGE_NUM) +
-					 STACK_PAGE_NUM * PAGE_SIZE;
+		pcb[i].kernel_stack_base = allocPage() + PAGE_SIZE;
+		pcb[i].user_stack_base = 0xf00010000lu;
 		pcb[i].status = TASK_EXITED;
 		pcb[i].list.next = &pcb[i].list;
 		pcb[i].list.prev = &pcb[i].list;
 		pcb[i].wait_list.next = &pcb[i].wait_list;
 		pcb[i].wait_list.prev = &pcb[i].wait_list;
 		spin_lock_init(&pcb[i].lock);
+		pcb[i].pagedir = NULL;
 	}
 
 	for (int i = 0; i < sizeof(needed_task_name) / 32; i++) {
@@ -177,31 +179,31 @@ static void init_pcb(void)
 		     : "r"(cpu[0].current_running)); // set tp = current_running
 }
 
-static int thread_create(int *tidptr, long func, void *arg)
-{
-	int thread_idx = -1;
-	for (int i = 0; i < NUM_MAX_TASK; ++i) {
-		if (tcb[i].tid == 0) {
-			thread_idx = i;
-			break;
-		}
-	}
-	if (thread_idx < 0) {
-		return 1;
-	}
-	tcb[thread_idx].tid = thread_id++;
-	tcb[thread_idx].status = TASK_READY;
-	tcb[thread_idx].cursor_x = 0;
-	tcb[thread_idx].cursor_y = 0;
-	tcb[thread_idx].wakeup_time = 0;
-	init_pcb_stack(
-		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
-		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
-		(ptr_t)func, (ptr_t)arg, tcb + thread_idx);
-	list_push(&ready_queue, &tcb[thread_idx].list);
-	*tidptr = tcb[thread_idx].tid;
-	return 0;
-}
+// static int thread_create(int *tidptr, long func, void *arg)
+// {
+// 	int thread_idx = -1;
+// 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+// 		if (tcb[i].tid == 0) {
+// 			thread_idx = i;
+// 			break;
+// 		}
+// 	}
+// 	if (thread_idx < 0) {
+// 		return 1;
+// 	}
+// 	tcb[thread_idx].tid = thread_id++;
+// 	tcb[thread_idx].status = TASK_READY;
+// 	tcb[thread_idx].cursor_x = 0;
+// 	tcb[thread_idx].cursor_y = 0;
+// 	tcb[thread_idx].wakeup_time = 0;
+// 	init_pcb_stack(
+// 		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
+// 		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
+// 		(ptr_t)func, (ptr_t)arg, tcb + thread_idx);
+// 	list_push(&ready_queue, &tcb[thread_idx].list);
+// 	*tidptr = tcb[thread_idx].tid;
+// 	return 0;
+// }
 
 static void init_syscall(void)
 {
@@ -243,7 +245,7 @@ static void init_syscall(void)
 	syscall[SYSCALL_MBOX_RECV] = (long (*)())do_mbox_recv;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
-	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
+	// syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
 	syscall[SYSCALL_THREAD_YIELD] = (long (*)())yield;
 	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
 	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;
@@ -283,8 +285,8 @@ int main(void)
 		bios_putstr("Hello OS!\n\r");
 		bios_putstr(buf);
 
-		// Load all tasks
-		init_tasks();
+		// Init Physical memory allocator
+		initkmem();
 
 		// Init Process Control Blocks |•'-'•) ✧
 		init_pcb();

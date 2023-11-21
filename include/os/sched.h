@@ -34,84 +34,88 @@
 #include <os/list.h>
 #include <os/lock.h>
 #include <type.h>
+#include <pgtable.h>
 
 #define NUM_MAX_TASK 16
 #define NUM_MAX_CPU 2
 
 /* used to save register infomation */
 typedef struct regs_context {
-  /* Saved main processor registers.*/
-  reg_t regs[32];
+	/* Saved main processor registers.*/
+	reg_t regs[32];
 
-  /* Saved special registers. */
-  reg_t sstatus;
-  reg_t sepc;
-  reg_t sbadaddr;
-  reg_t scause;
+	/* Saved special registers. */
+	reg_t sstatus;
+	reg_t sepc;
+	reg_t sbadaddr;
+	reg_t scause;
 } regs_context_t;
 
 /* used to save register infomation in switch_to */
 typedef struct switchto_context {
-  /* Callee saved registers.*/
-  reg_t regs[14];
+	/* Callee saved registers.*/
+	reg_t regs[14];
 } switchto_context_t;
 
 typedef enum {
-  TASK_BLOCKED,
-  TASK_RUNNING,
-  TASK_READY,
-  TASK_EXITED,
-  TASK_IDLE
+	TASK_BLOCKED,
+	TASK_RUNNING,
+	TASK_READY,
+	TASK_EXITED,
+	TASK_IDLE
 } task_status_t;
 
 /* Process Control Block */
 typedef struct pcb {
-  /* register context */
-  // NOTE: this order must be preserved, which is defined in regs.h!!
-  reg_t kernel_sp;
-  reg_t user_sp;
-  ptr_t kernel_stack_base;
-  ptr_t user_stack_base;
+	/* register context */
+	// NOTE: this order must be preserved, which is defined in regs.h!!
+	reg_t kernel_sp;
+	reg_t user_sp;
+	ptr_t kernel_stack_base;
+	ptr_t user_stack_base;
 
-  /* previous, next pointer */
-  list_node_t list;
-  list_head wait_list;
+	/* previous, next pointer */
+	list_node_t list;
+	list_head wait_list;
 
-  spin_lock_t list_lock;
+	spin_lock_t list_lock;
 
-  uint64_t cpuID;
-  int cpuMask;
+	uint64_t cpuID;
+	int cpuMask;
 
-  /* process id */
-  pid_t pid;
-  /* */
-  tid_t tid;
+	/* process id */
+	pid_t pid;
+	/* */
+	tid_t tid;
 
-  /* BLOCK | READY | RUNNING */
-  task_status_t status;
+	/* BLOCK | READY | RUNNING */
+	task_status_t status;
 
-  /* cursor position */
-  int cursor_x;
-  int cursor_y;
+	/* cursor position */
+	int cursor_x;
+	int cursor_y;
 
-  /* time(seconds) to wake up sleeping PCB */
-  uint64_t wakeup_time;
+	/* time(seconds) to wake up sleeping PCB */
+	uint64_t wakeup_time;
 
-  /* lock to protect pcb */
-  spin_lock_t lock;
+	/* lock to protect pcb */
+	spin_lock_t lock;
 
-  /* the pcb switch from */
-  struct pcb *switch_from;
+	/* the pcb switch from */
+	struct pcb *switch_from;
 
-  /* set 1 if killed */
-  int killed;
+	/* set 1 if killed */
+	int killed;
+
+	/* page dir */
+	PTE *pagedir;
 
 } pcb_t, tcb_t;
 
 /* CPU */
 typedef struct cpu {
-  pid_t pid;
-  pcb_t *volatile current_running;
+	pid_t pid;
+	pcb_t *volatile current_running;
 } cpu_t;
 
 /* ready queue to run */
@@ -158,7 +162,7 @@ void check_killed();
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/
 #ifdef S_CORE
 extern pid_t do_exec(int id, int argc, uint64_t arg0, uint64_t arg1,
-                     uint64_t arg2);
+		     uint64_t arg2);
 #else
 extern pid_t do_exec(char *name, int argc, char *argv[]);
 #endif

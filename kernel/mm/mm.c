@@ -1,14 +1,42 @@
 #include <os/mm.h>
+#include <os/lock.h>
 
 // NOTE: A/C-core
 static ptr_t kernMemCurr = FREEMEM_KERNEL;
 
-ptr_t allocPage(int numPage)
+struct freeList {
+	struct freeList *next;
+};
+
+struct {
+	spin_lock_t lock;
+	struct freeList *kmem;
+} kmem;
+
+void initkmem()
+{
+	for (ptr_t i = FREEMEM_KERNEL; i < 0xffffffc060000000lu;
+	     i += PAGE_SIZE) {
+		freePage(i);
+	}
+}
+
+ptr_t allocPage()
 {
 	// align PAGE_SIZE
-	ptr_t ret = ROUND(kernMemCurr, PAGE_SIZE);
-	kernMemCurr = ret + numPage * PAGE_SIZE;
-	return ret;
+	// ptr_t ret = ROUND(kernMemCurr, PAGE_SIZE);
+	// kernMemCurr = ret + numPage * PAGE_SIZE;
+	// return ret;
+	struct freeList *ret;
+	spin_lock_acquire(&kmem.lock);
+	ret = kmem.kmem;
+	if (ret)
+		kmem.kmem = ret->next;
+	spin_lock_release(&kmem.lock);
+	for (int i = 0; i < PAGE_SIZE; ++i) {
+		((char *)ret)[i] = 0;
+	}
+	return (ptr_t)ret;
 }
 
 // NOTE: Only need for S-core to alloc 2MB large page
@@ -26,6 +54,11 @@ ptr_t allocLargePage(int numPage)
 void freePage(ptr_t baseAddr)
 {
 	// TODO [P4-task1] (design you 'freePage' here if you need):
+	struct freeList *ret = (struct freeList *)baseAddr;
+	spin_lock_acquire(&kmem.lock);
+	ret->next = kmem.kmem;
+	kmem.kmem = ret;
+	spin_lock_release(&kmem.lock);
 }
 
 void *kmalloc(size_t size)
