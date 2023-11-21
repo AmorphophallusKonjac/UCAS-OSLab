@@ -110,7 +110,7 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 	pt_regs->regs[1] = (reg_t)(entry_point + 2); // ra
 	pt_regs->regs[10] = (reg_t)arg; // a0
 	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
-	pt_regs->sstatus = (reg_t)SR_SPIE & ~SR_SPP;
+	pt_regs->sstatus = ((reg_t)SR_SPIE & (reg_t)~SR_SPP) | (reg_t)SR_SUM;
 	pt_regs->sepc = (reg_t)entry_point;
 	pt_regs->sbadaddr = (reg_t)0;
 	pt_regs->scause = (reg_t)0;
@@ -169,6 +169,8 @@ static void init_pcb(void)
 		init_pcb_stack(pcb[i].kernel_stack_base, pcb[i].user_stack_base,
 			       getEntrypoint(needed_task_name[i]), 0, pcb + i);
 		list_push(&ready_queue, &pcb[i].list);
+		pcb[i].pagedir = initPgtable();
+		from_name_load_task_img(needed_task_name[i], &pcb[i]);
 	}
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */

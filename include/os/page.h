@@ -6,5 +6,6 @@
 #include <os/mm.h>
 
 PTE *initPgtable();
+void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir);
 
 #endif

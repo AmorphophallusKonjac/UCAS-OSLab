@@ -41,11 +41,11 @@ void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir)
 		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
 	}
-	PTE *thirdPgdit = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
-	set_pfn(&thirdPgdit[vpn0], pa >> NORMAL_PAGE_SHIFT);
-	set_attribute(&thirdPgdit[vpn0], _PAGE_PRESENT | _PAGE_READ |
-						 _PAGE_WRITE | _PAGE_EXEC |
-						 _PAGE_ACCESSED | _PAGE_DIRTY);
+	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
+	set_pfn(&thirdPgdir[vpn0], pa >> NORMAL_PAGE_SHIFT);
+	set_attribute(&thirdPgdir[vpn0],
+		      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |
+			      _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_USER);
 }
 
 PTE *initPgtable()

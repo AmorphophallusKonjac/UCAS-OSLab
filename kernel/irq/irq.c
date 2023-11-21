@@ -4,6 +4,7 @@
 #include <os/string.h>
 #include <os/kernel.h>
 #include <os/smp.h>
+#include <os/page.h>
 #include <printk.h>
 #include <assert.h>
 #include <screen.h>
@@ -29,6 +30,116 @@ void handle_irq_timer(regs_context_t *regs, uint64_t stval, uint64_t scause)
 	yield();
 }
 
+void load_page_fault_handler(regs_context_t *regs, uint64_t stval,
+			     uint64_t scause)
+{
+	pcb_t *current_running = get_current_running();
+	PTE *firstPgdir = current_running->pagedir;
+	uint64_t va = stval;
+	va &= VA_MASK;
+	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT + PPN_BITS));
+	uint64_t vpn0 = (vpn2 << (PPN_BITS + PPN_BITS)) ^ (vpn1 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT));
+	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
+		set_pfn(&firstPgdir[vpn2],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&firstPgdir[vpn2], _PAGE_PRESENT);
+		clear_pgdir(pa2kva(get_pa(firstPgdir[vpn2])));
+	}
+	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
+	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
+		set_pfn(&secondPgdir[vpn1],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
+		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
+	}
+	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
+	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
+		set_pfn(&thirdPgdir[vpn0],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&thirdPgdir[vpn0],
+			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+				      _PAGE_EXEC | _PAGE_USER);
+	} else {
+		set_attribute(&thirdPgdir[vpn0],
+			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+				      _PAGE_EXEC | _PAGE_ACCESSED | _PAGE_USER);
+	}
+}
+
+void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
+			      uint64_t scause)
+{
+	pcb_t *current_running = get_current_running();
+	PTE *firstPgdir = current_running->pagedir;
+	uint64_t va = stval;
+	va &= VA_MASK;
+	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT + PPN_BITS));
+	uint64_t vpn0 = (vpn2 << (PPN_BITS + PPN_BITS)) ^ (vpn1 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT));
+	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
+		set_pfn(&firstPgdir[vpn2],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&firstPgdir[vpn2], _PAGE_PRESENT);
+		clear_pgdir(pa2kva(get_pa(firstPgdir[vpn2])));
+	}
+	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
+	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
+		set_pfn(&secondPgdir[vpn1],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
+		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
+	}
+	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
+	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
+		set_pfn(&thirdPgdir[vpn0],
+			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+		set_attribute(&thirdPgdir[vpn0],
+			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+				      _PAGE_EXEC | _PAGE_USER);
+	} else {
+		set_attribute(&thirdPgdir[vpn0],
+			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+				      _PAGE_EXEC | _PAGE_ACCESSED |
+				      _PAGE_DIRTY | _PAGE_USER);
+	}
+}
+
+void inst_page_fault_handler(regs_context_t *regs, uint64_t stval,
+			     uint64_t scause)
+{
+	pcb_t *current_running = get_current_running();
+	PTE *firstPgdir = current_running->pagedir;
+	uint64_t va = stval;
+	va &= VA_MASK;
+	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT + PPN_BITS));
+	uint64_t vpn0 = (vpn2 << (PPN_BITS + PPN_BITS)) ^ (vpn1 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT));
+	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
+		printk("vpn2 error\n");
+		assert(0);
+	}
+	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
+	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
+		printk("vpn1 error\n");
+		assert(0);
+	}
+	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
+	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
+		printk("vpn0 error\n");
+		assert(0);
+	} else {
+		printk("unknown error\n");
+		assert(0);
+	}
+}
+
 void init_exception()
 {
 	/* TODO: [p2-task3] initialize exc_table */
@@ -37,6 +148,9 @@ void init_exception()
 		exc_table[i] = (handler_t)handle_other;
 	}
 	exc_table[EXCC_SYSCALL] = (handler_t)handle_syscall;
+	exc_table[EXCC_LOAD_PAGE_FAULT] = (handler_t)load_page_fault_handler;
+	exc_table[EXCC_STORE_PAGE_FAULT] = (handler_t)store_page_fault_handler;
+	exc_table[EXCC_INST_PAGE_FAULT] = (handler_t)inst_page_fault_handler;
 	/* TODO: [p2-task4] initialize irq_table */
 	/* NOTE: handle_int, handle_other, etc.*/
 	for (int i = 0; i < IRQC_COUNT; ++i) {

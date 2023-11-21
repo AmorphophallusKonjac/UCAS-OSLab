@@ -1,6 +1,7 @@
 #include <os/task.h>
 #include <os/string.h>
 #include <os/kernel.h>
+#include <os/loader.h>
 #include <type.h>
 
 uint64_t load_task_img(int taskid)
@@ -37,26 +38,32 @@ uint64_t getEntrypoint(char *name)
 	return 0;
 }
 
-uint64_t from_name_load_task_img(char *name)
+uint64_t from_name_load_task_img(char *name, pcb_t *pcb)
 {
+	int idx = -1;
 	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
 		if (strcmp(tasks[taskidx].name, name) == 0) {
-			return load_task_img(taskidx);
+			idx = taskidx;
 		}
 	}
-	return 0;
-}
-
-void from_name_exec_task(char *name)
-{
-	int flag = 0;
-	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
-		if (strcmp(tasks[taskidx].name, name) == 0) {
-			((void (*)())load_task_img(taskidx))();
-			flag = 1;
+	char buf[SECTOR_SIZE];
+	if (idx == -1)
+		return 1;
+	uint64_t kvpa = allocPage();
+	map_page(tasks[idx].entrypoint, kva2pa(kvpa), pcb->pagedir);
+	uint32_t task_sector_id = tasks[idx].offset / SECTOR_SIZE;
+	bios_sd_read((unsigned int)kva2pa((uintptr_t)buf), 1, task_sector_id++);
+	for (int i = 0; i < tasks[idx].size; ++i) {
+		if (i && (i + tasks[idx].offset) % SECTOR_SIZE == 0) {
+			bios_sd_read((unsigned int)kva2pa((uintptr_t)buf), 1,
+				     task_sector_id++);
 		}
-	}
-	if (!flag) {
-		bios_putstr("invalid task name\n\r");
+		if (i && i % PAGE_SIZE == 0) {
+			kvpa = allocPage();
+			map_page(tasks[idx].entrypoint + i, kva2pa(kvpa),
+				 pcb->pagedir);
+		}
+		((char *)kvpa)[i % PAGE_SIZE] =
+			buf[(i + tasks[idx].offset) % SECTOR_SIZE];
 	}
 }

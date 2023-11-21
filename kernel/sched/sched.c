@@ -116,6 +116,11 @@ void do_scheduler(void)
 	//        prev_running->pid, cpu[cpuID].current_running->pid);
 	// list_print(&ready_queue);
 	// printl("\n");
+	set_satp(SATP_MODE_SV39, cpu[cpuID].current_running->pid,
+		 kva2pa((uintptr_t)cpu[cpuID].current_running->pagedir) >>
+			 NORMAL_PAGE_SHIFT);
+	local_flush_tlb_all();
+	local_flush_icache_all();
 	bios_set_timer(get_ticks() + TIMER_INTERVAL);
 	// TODO: [p2-task1] switch_to current_running
 	switch_to(prev_running, cpu[cpuID].current_running);
