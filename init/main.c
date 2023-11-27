@@ -150,7 +150,7 @@ int main(void)
     init_exception();
     printk("> [INIT] Interrupt processing initialization succeeded.\n");
 
-    // TODO: [p5-task4] Init plic
+    // TODO: [p5-task3] Init plic
     // plic_init(plic_addr, nr_irqs);
     // printk("> [INIT] PLIC initialized successfully. addr = 0x%lx, nr_irqs=0x%x\n", plic_addr, nr_irqs);
 

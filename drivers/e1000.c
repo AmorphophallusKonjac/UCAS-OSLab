@@ -78,7 +78,7 @@ static void e1000_configure_rx(void)
 
     /* TODO: [p5-task2] Program the Receive Control Register */
 
-    /* TODO: [p5-task4] Enable RXDMT0 Interrupt */
+    /* TODO: [p5-task3] Enable RXDMT0 Interrupt */
 }
 
 /**

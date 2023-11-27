@@ -12,7 +12,7 @@ int do_net_send(void *txpacket, int length)
 {
     // TODO: [p5-task1] Transmit one network packet via e1000 device
     // TODO: [p5-task3] Call do_block when e1000 transmit queue is full
-    // TODO: [p5-task4] Enable TXQE interrupt if transmit queue is full
+    // TODO: [p5-task3] Enable TXQE interrupt if transmit queue is full
 
     return 0;  // Bytes it has transmitted
 }
@@ -27,5 +27,5 @@ int do_net_recv(void *rxbuffer, int pkt_num, int *pkt_lens)
 
 void net_handle_irq(void)
 {
-    // TODO: [p5-task4] Handle interrupts from network device
+    // TODO: [p5-task3] Handle interrupts from network device
 }

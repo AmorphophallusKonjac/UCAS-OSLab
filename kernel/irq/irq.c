@@ -24,7 +24,7 @@ void handle_irq_timer(regs_context_t *regs, uint64_t stval, uint64_t scause)
 
 void handle_irq_ext(regs_context_t *regs, uint64_t stval, uint64_t scause)
 {
-    // TODO: [p5-task4] external interrupt handler.
+    // TODO: [p5-task3] external interrupt handler.
     // Note: plic_claim and plic_complete will be helpful ...
 }
 
