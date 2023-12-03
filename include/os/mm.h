@@ -36,6 +36,8 @@
 #define PAGE_NUMS 57344
 #endif
 
+#define SHARE_PAGE_NUMS 16
+
 #define MEM_PAGE_NUMS 28672
 
 #include <os/list.h>
@@ -77,6 +79,15 @@ typedef struct mempgcb {
 } mempgcb_t;
 
 mempgcb_t mempgcb[MEM_PAGE_NUMS];
+
+typedef struct sharepgcb {
+	spin_lock_t lock;
+	int key;
+	int user_num;
+	ptr_t addr;
+} sharepgcb_t;
+
+sharepgcb_t sharepgcb[SHARE_PAGE_NUMS];
 
 int addr2idx(ptr_t addr);
 int idx2sectorIdx(int idx);

@@ -20,6 +20,12 @@ static ptr_t kernMemCurr = FREEMEM_KERNEL;
 
 void initkmem()
 {
+	for (int i = 0; i < SHARE_PAGE_NUMS; ++i) {
+		spin_lock_init(&sharepgcb[i].lock);
+		sharepgcb[i].key = -1;
+		sharepgcb[i].user_num = 0;
+		sharepgcb[i].addr = 0;
+	}
 	for (int i = 0; i < MEM_PAGE_NUMS; ++i) {
 		spin_lock_init(&mempgcb[i].lock);
 		mempgcb[i].pid = 0;
@@ -108,9 +114,65 @@ uintptr_t alloc_page_helper(uintptr_t va, uintptr_t pgdir)
 uintptr_t shm_page_get(int key)
 {
 	// TODO [P4-task4] shm_page_get:
+	int idx = -1;
+	for (int i = 0; i < SHARE_PAGE_NUMS; ++i) {
+		spin_lock_acquire(&sharepgcb[i].lock);
+		if (key == sharepgcb[i].key) {
+			idx = i;
+			break;
+		}
+		spin_lock_release(&sharepgcb[i].lock);
+	}
+	if (idx == -1) {
+		for (int i = 0; i < SHARE_PAGE_NUMS; ++i) {
+			spin_lock_acquire(&sharepgcb[i].lock);
+			if (key == sharepgcb[i].key || sharepgcb[i].key == -1) {
+				sharepgcb[i].key = key;
+				idx = i;
+				break;
+			}
+			spin_lock_release(&sharepgcb[i].lock);
+		}
+	}
+	pcb_t *current_running = get_current_running();
+	++sharepgcb[idx].user_num;
+	if (sharepgcb[idx].user_num == 1) {
+		sharepgcb[idx].addr = allocPage(0, 0, PINNED);
+	}
+	uint64_t va = -1;
+	for (uint64_t i = PAGE_SIZE; i < 0x0000003ffffffffflu; i += PAGE_SIZE) {
+		if (!valid_va(i, current_running->pagedir)) {
+			va = i;
+			break;
+		}
+	}
+	map_page(va, kva2pa(sharepgcb[idx].addr), current_running->pagedir,
+		 current_running->pid);
+	spin_lock_release(&sharepgcb[idx].lock);
+	return va;
 }
 
 void shm_page_dt(uintptr_t addr)
 {
 	// TODO [P4-task4] shm_page_dt:
+	pcb_t *current_running = get_current_running();
+	ptr_t kvaddr =
+		pa2kva(get_pa(*getEntry(current_running->pagedir, addr)));
+	*getEntry(current_running->pagedir, addr) = 0;
+	int idx = -1;
+	for (int i = 0; i < SHARE_PAGE_NUMS; ++i) {
+		spin_lock_acquire(&sharepgcb[i].lock);
+		if (kvaddr == sharepgcb[i].addr) {
+			idx = i;
+			break;
+		}
+		spin_lock_release(&sharepgcb[i].lock);
+	}
+	--sharepgcb[idx].user_num;
+	if (sharepgcb[idx].user_num == 0) {
+		freePage(&pgcb[addr2idx(sharepgcb[idx].addr)]);
+		sharepgcb[idx].addr = 0;
+		sharepgcb[idx].key = -1;
+	}
+	spin_lock_release(&sharepgcb[idx].lock);
 }

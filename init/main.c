@@ -174,6 +174,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_MBOX_CLOSE] = (long (*)())do_mbox_close;
 	syscall[SYSCALL_MBOX_SEND] = (long (*)())do_mbox_send;
 	syscall[SYSCALL_MBOX_RECV] = (long (*)())do_mbox_recv;
+	syscall[SYSCALL_SHM_GET] = (long (*)())shm_page_get;
+	syscall[SYSCALL_SHM_DT] = (long (*)())shm_page_dt;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;

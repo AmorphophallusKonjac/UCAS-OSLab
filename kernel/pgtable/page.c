@@ -185,3 +185,25 @@ uintptr_t swapIn(uint64_t vaddr)
 	spin_lock_release(&mem_pg->lock);
 	return addr;
 }
+
+int valid_va(uint64_t va, PTE *firstPgdir)
+{
+	va &= VA_MASK;
+	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT + PPN_BITS));
+	uint64_t vpn0 = (vpn2 << (PPN_BITS + PPN_BITS)) ^ (vpn1 << PPN_BITS) ^
+			(va >> (NORMAL_PAGE_SHIFT));
+	if (firstPgdir[vpn2] == 0) {
+		return 0;
+	}
+	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
+	if (secondPgdir[vpn1] == 0) {
+		return 0;
+	}
+	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
+	if (thirdPgdir[vpn0] == 0) {
+		return 0;
+	}
+	return 1;
+}

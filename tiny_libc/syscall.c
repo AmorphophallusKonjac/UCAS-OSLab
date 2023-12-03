@@ -324,10 +324,14 @@ int sys_mbox_recv(int mbox_idx, void *msg, int msg_length)
 void *sys_shmpageget(int key)
 {
 	/* TODO: [p4-task4] call invoke_syscall to implement sys_shmpageget */
+	return (void *)invoke_syscall(SYSCALL_SHM_GET, key, IGNORE, IGNORE,
+				      IGNORE, IGNORE);
 }
 
 void sys_shmpagedt(void *addr)
 {
 	/* TODO: [p4-task4] call invoke_syscall to implement sys_shmpagedt */
+	invoke_syscall(SYSCALL_SHM_DT, (long)addr, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
 }
 /************************************************************/
