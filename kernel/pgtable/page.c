@@ -108,9 +108,11 @@ PTE *getEntry(PTE *firstPgdir, uint64_t va)
 
 pgcb_t *swapOut()
 {
+	static int i = 0;
 	pgcb_t *pg = NULL;
 	while (pg == NULL) {
-		for (int i = 0; i < PAGE_NUMS; ++i) {
+		++i;
+		for (; i < PAGE_NUMS; ++i) {
 			spin_lock_acquire(&pgcb[i].lock);
 			if ((pgcb[i].status == ALLOC &&
 			     pgcb[i].pin == UNPINNED &&
@@ -122,6 +124,7 @@ pgcb_t *swapOut()
 			}
 			spin_lock_release(&pgcb[i].lock);
 		}
+		i = 0;
 	}
 	if (pg->status == FREE) {
 		return pg;
