@@ -170,7 +170,7 @@ debug-smp:
 	$(QEMU) $(QEMU_OPTS) $(QEMU_SMP_OPT) $(QEMU_DEBUG_OPT)
 
 minicom:
-	sudo $(MINICOM) -D $(TTYUSB1)
+	sudo $(MINICOM) -D $(TTYUSB1) -X ~/OSLab-RISC-V/oslab-log.txt
 
 .PHONY: all dirs clean floppy asm gdb run debug viewlog minicom
 

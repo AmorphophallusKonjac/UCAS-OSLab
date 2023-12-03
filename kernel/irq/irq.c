@@ -60,12 +60,23 @@ void load_page_fault_handler(regs_context_t *regs, uint64_t stval,
 	}
 	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
 	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
-		set_pfn(&thirdPgdir[vpn0],
-			kva2pa(allocPage(pid, (va >> 12) << 12, UNPINNED)) >>
-				NORMAL_PAGE_SHIFT);
-		set_attribute(&thirdPgdir[vpn0],
-			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
-				      _PAGE_EXEC | _PAGE_USER);
+		if (get_attribute(thirdPgdir[vpn0], _PAGE_SOFT_OUT) != 0) {
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(swapIn((va >> NORMAL_PAGE_SHIFT)
+					      << NORMAL_PAGE_SHIFT)) >>
+					NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      get_attribute(thirdPgdir[vpn0], 1023) ^
+					      _PAGE_SOFT_OUT ^ _PAGE_PRESENT);
+		} else {
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(allocPage(pid, (va >> 12) << 12,
+						 UNPINNED)) >>
+					NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+					      _PAGE_EXEC | _PAGE_USER);
+		}
 	} else {
 		set_attribute(&thirdPgdir[vpn0],
 			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
@@ -103,12 +114,23 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 	}
 	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
 	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
-		set_pfn(&thirdPgdir[vpn0],
-			kva2pa(allocPage(pid, (va >> 12) << 12, UNPINNED)) >>
-				NORMAL_PAGE_SHIFT);
-		set_attribute(&thirdPgdir[vpn0],
-			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
-				      _PAGE_EXEC | _PAGE_USER);
+		if (get_attribute(thirdPgdir[vpn0], _PAGE_SOFT_OUT) != 0) {
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(swapIn((va >> NORMAL_PAGE_SHIFT)
+					      << NORMAL_PAGE_SHIFT)) >>
+					NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      get_attribute(thirdPgdir[vpn0], 1023) ^
+					      _PAGE_SOFT_OUT ^ _PAGE_PRESENT);
+		} else {
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(allocPage(pid, (va >> 12) << 12,
+						 UNPINNED)) >>
+					NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+					      _PAGE_EXEC | _PAGE_USER);
+		}
 	} else {
 		set_attribute(&thirdPgdir[vpn0],
 			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |

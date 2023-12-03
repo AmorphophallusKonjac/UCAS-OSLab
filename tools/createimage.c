@@ -216,6 +216,7 @@ static void create_image(int nfiles, char *files[])
 		       img);
 
 	fclose(img);
+	printf("total write %d bytes to image.", phyaddr);
 }
 
 static void read_ehdr(Elf64_Ehdr *ehdr, FILE *fp)

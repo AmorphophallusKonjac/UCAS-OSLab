@@ -26,15 +26,14 @@ void initkmem()
 		mempgcb[i].status = FREE;
 		mempgcb[i].vaddr = 0;
 	}
-	for (ptr_t i = FREEMEM_KERNEL; i < 0xffffffc060000000lu;
-	     i += PAGE_SIZE) {
-		int idx = addr2idx(i);
-		spin_lock_init(&pgcb[idx].lock);
-		pgcb[idx].addr = i;
-		pgcb[idx].status = FREE;
-		pgcb[idx].pin = UNPINNED;
-		pgcb[idx].pid = 0;
-		pgcb[idx].vaddr = 0;
+	for (int i = 0; i < PAGE_NUMS; ++i) {
+		ptr_t addr = i * PAGE_SIZE + FREEMEM_KERNEL;
+		spin_lock_init(&pgcb[i].lock);
+		pgcb[i].addr = addr;
+		pgcb[i].status = FREE;
+		pgcb[i].pin = UNPINNED;
+		pgcb[i].pid = 0;
+		pgcb[i].vaddr = 0;
 	}
 }
 
@@ -50,7 +49,7 @@ ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 		spin_lock_release(&pgcb[i].lock);
 	}
 	if (pg == NULL) {
-		swapOut();
+		pg = swapOut();
 	}
 	pg->status = ALLOC;
 	pg->pid = pid;
@@ -58,6 +57,8 @@ ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 	pg->pin = pin;
 	clear_pgdir(pg->addr);
 	spin_lock_release(&pg->lock);
+	printl("process %d alloc page %d, vaddr = %X, pin = %d\n", pid,
+	       addr2idx(pg->addr), vaddr, (pin == PINNED));
 	return pg->addr;
 }
 

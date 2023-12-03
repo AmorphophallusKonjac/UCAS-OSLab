@@ -130,6 +130,7 @@ pgcb_t *swapOut()
 		PTE *entry = getEntry(pcb->pagedir, pg->vaddr);
 		uint64_t bits = get_attribute(*entry, 1023);
 		set_attribute(entry, bits ^ _PAGE_PRESENT ^ _PAGE_SOFT_OUT);
+		// printl("set %X\n", get_attribute(*entry, 1023));
 	}
 	mempgcb_t *mempg = NULL;
 	int sector_idx = 0;
@@ -139,16 +140,48 @@ pgcb_t *swapOut()
 			if (mempgcb[i].status == FREE) {
 				mempg = &mempgcb[i];
 				sector_idx = i * 8 + SECTOR_BASE;
+				printl("page %d swap out to mem page %d\n",
+				       addr2idx(pg->addr), i);
 				break;
 			}
 			spin_lock_release(&mempgcb[i].lock);
 		}
 	}
-	bios_sd_write(pg->addr, 8, sector_idx);
+	bios_sd_write(kva2pa(pg->addr), PAGE_SIZE / SECTOR_SIZE, sector_idx);
 	clear_pgdir(pg->addr);
 	mempg->status = ALLOC;
 	mempg->vaddr = pg->vaddr;
 	mempg->pid = pg->pid;
 	spin_lock_release(&mempg->lock);
 	return pg;
+}
+
+uintptr_t swapIn(uint64_t vaddr)
+{
+	pcb_t *current_running = get_current_running();
+	int pid = current_running->pid;
+	ptr_t addr = allocPage(pid, vaddr, UNPINNED);
+	mempgcb_t *mem_pg = NULL;
+	int sector_idx = 0;
+	while (mem_pg == NULL) {
+		for (int i = 0; i < MEM_PAGE_NUMS; ++i) {
+			spin_lock_acquire(&mempgcb[i].lock);
+			if (mempgcb[i].status == ALLOC &&
+			    mempgcb[i].vaddr == vaddr &&
+			    mempgcb[i].pid == pid) {
+				mem_pg = &mempgcb[i];
+				sector_idx = i * 8 + SECTOR_BASE;
+				printl("mem page %d swap in to page %d\n", i,
+				       addr2idx(addr));
+				break;
+			}
+			spin_lock_release(&mempgcb[i].lock);
+		}
+	}
+	bios_sd_read(kva2pa(addr), PAGE_SIZE / SECTOR_SIZE, sector_idx);
+	mem_pg->vaddr = 0;
+	mem_pg->pid = 0;
+	mem_pg->status = FREE;
+	spin_lock_release(&mem_pg->lock);
+	return addr;
 }

@@ -12,7 +12,7 @@
 #include <assert.h>
 
 #define SECTOR_SIZE 512
-#define SECTOR_BASE 10000
+#define SECTOR_BASE 300
 
 PTE *initPgtable(int pid);
 void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid);
@@ -20,5 +20,6 @@ void unmapBoot(void);
 void unmapPageDir(int pid);
 
 pgcb_t *swapOut(void);
+uintptr_t swapIn(uint64_t vaddr);
 
 #endif
