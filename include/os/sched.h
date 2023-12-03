@@ -110,6 +110,8 @@ typedef struct pcb {
 	/* page dir */
 	PTE *pagedir;
 
+	ptr_t next_stack_base;
+
 } pcb_t, tcb_t;
 
 /* CPU */
@@ -160,7 +162,7 @@ void check_killed();
 pcb_t *pid2pcb(int pid);
 void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
 		    pcb_t *pcb, int argc, char *argv[]);
-
+int thread_create(int *tidptr, long func, void *arg);
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/
 #ifdef S_CORE

@@ -108,6 +108,7 @@ static void init_pcb(void)
 		pcb[i].wait_list.prev = &pcb[i].wait_list;
 		spin_lock_init(&pcb[i].lock);
 		pcb[i].pagedir = NULL;
+		pcb[i].next_stack_base = pcb[i].user_stack_base + 2 * PAGE_SIZE;
 	}
 
 	for (int i = 0; i < sizeof(needed_task_name) / 32; i++) {
@@ -134,32 +135,6 @@ static void init_pcb(void)
 		     :
 		     : "r"(cpu[0].current_running)); // set tp = current_running
 }
-
-// static int thread_create(int *tidptr, long func, void *arg)
-// {
-// 	int thread_idx = -1;
-// 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
-// 		if (tcb[i].tid == 0) {
-// 			thread_idx = i;
-// 			break;
-// 		}
-// 	}
-// 	if (thread_idx < 0) {
-// 		return 1;
-// 	}
-// 	tcb[thread_idx].tid = thread_id++;
-// 	tcb[thread_idx].status = TASK_READY;
-// 	tcb[thread_idx].cursor_x = 0;
-// 	tcb[thread_idx].cursor_y = 0;
-// 	tcb[thread_idx].wakeup_time = 0;
-// 	init_pcb_stack(
-// 		allocKernelPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
-// 		allocUserPage(STACK_PAGE_NUM) + STACK_PAGE_NUM * PAGE_SIZE,
-// 		(ptr_t)func, (ptr_t)arg, tcb + thread_idx);
-// 	list_push(&ready_queue, &tcb[thread_idx].list);
-// 	*tidptr = tcb[thread_idx].tid;
-// 	return 0;
-// }
 
 static void init_syscall(void)
 {
@@ -201,7 +176,7 @@ static void init_syscall(void)
 	syscall[SYSCALL_MBOX_RECV] = (long (*)())do_mbox_recv;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
-	// syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
+	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
 	syscall[SYSCALL_THREAD_YIELD] = (long (*)())yield;
 	syscall[SYSCALL_READCH] = (long (*)())bios_getchar;
 	syscall[SYSCALL_BACKSPACE] = (long (*)())screen_backspace;

@@ -331,12 +331,15 @@ void do_exit(void)
 	current_running->cursor_y = 0;
 	current_running->kernel_sp =
 		current_running->kernel_stack_base + PAGE_SIZE;
+	current_running->user_stack_base = 0xf0000f000;
 	current_running->user_sp = current_running->user_stack_base + PAGE_SIZE;
 	unmapPageDir(current_running->pid);
 	current_running->pid = 0;
 	current_running->tid = 0;
 	current_running->wakeup_time = 0;
 	current_running->killed = 0;
+	current_running->next_stack_base =
+		current_running->user_stack_base + 2 * PAGE_SIZE;
 	do_scheduler();
 }
 
@@ -418,4 +421,85 @@ pcb_t *pid2pcb(int pid)
 		spin_lock_release(&pcb[i].lock);
 	}
 	return &pcb[ret];
+}
+
+void init_pthread_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
+			pcb_t *pcb, void *arg)
+{
+	// [p3-task1] set user stack for argv
+	ptr_t vUserSp = user_stack;
+	ptr_t pUserSp = allocPage(pcb->pid, 0, PINNED);
+	map_page(vUserSp - PAGE_SIZE, kva2pa((uintptr_t)pUserSp), pcb->pagedir,
+		 pcb->pid);
+	pcb->user_sp = vUserSp;
+	/* TODO: [p2-task3] initialization of registers on kernel stack
+      * HINT: sp, ra, sepc, sstatus
+      * NOTE: To run the task in user mode, you should set corresponding bits
+      *     of sstatus(SPP, SPIE, etc.).
+      */
+	regs_context_t *pt_regs =
+		(regs_context_t *)(kernel_stack - sizeof(regs_context_t));
+	for (int i = 0; i < 32; ++i)
+		pt_regs->regs[i] = 0;
+	pt_regs->regs[2] = (reg_t)pcb->user_sp; // sp
+	pt_regs->regs[4] = (reg_t)pcb; // tp
+	pt_regs->regs[1] = (reg_t)(0x10000 + 2);
+	pt_regs->regs[10] = (reg_t)arg;
+	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
+	pt_regs->sstatus = ((reg_t)SR_SPIE & (reg_t)~SR_SPP) | (reg_t)SR_SUM;
+	pt_regs->sepc = (reg_t)entry_point;
+	pt_regs->sbadaddr = (reg_t)0;
+	pt_regs->scause = (reg_t)0;
+	/* TODO: [p2-task1] set sp to simulate just returning from switch_to
+     * NOTE: you should prepare a stack, and push some values to
+     * simulate a callee-saved context.
+     */
+	switchto_context_t *pt_switchto =
+		(switchto_context_t *)((ptr_t)pt_regs -
+				       sizeof(switchto_context_t));
+	for (int i = 0; i < 14; ++i)
+		pt_switchto->regs[i] = (reg_t)0;
+	// [p2-task1]
+	// pt_switchto->regs[0] = (reg_t)entry_point;         // ra
+	// [p2-task3]
+	// pt_switchto->regs[0] = (reg_t)ret_from_exception;   // ra
+	// [p3-task5]
+	pt_switchto->regs[0] = (reg_t)forkret; // ra
+	pt_switchto->regs[1] = (reg_t)pt_switchto; // sp
+
+	pcb->kernel_sp = (reg_t)pt_switchto;
+}
+
+int thread_create(int *tidptr, long entrypoint, void *arg)
+{
+	pcb_t *current_running = get_current_running();
+	int pcbidx = -1;
+	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
+		if (pcb[i].status == TASK_EXITED) {
+			pcbidx = i;
+			break;
+		}
+		spin_lock_release(&pcb[i].lock);
+	}
+	assert(pcbidx != -1);
+	pcb[pcbidx].pid = process_id++;
+	pcb[pcbidx].pagedir = current_running->pagedir;
+	pcb[pcbidx].user_stack_base = current_running->next_stack_base;
+	current_running->next_stack_base += 2 * PAGE_SIZE;
+	init_pthread_stack(pcb[pcbidx].kernel_stack_base + PAGE_SIZE,
+			   pcb[pcbidx].user_stack_base + PAGE_SIZE, entrypoint,
+			   pcb + pcbidx, arg);
+	pcb[pcbidx].status = TASK_READY;
+	pcb[pcbidx].cursor_x = 0;
+	pcb[pcbidx].cursor_y = 0;
+	pcb[pcbidx].tid = 0;
+	pcb[pcbidx].wakeup_time = 0;
+	pcb[pcbidx].cpuMask = current_running->cpuMask;
+	spin_lock_acquire(&ready_queue_lock);
+	list_push(&ready_queue, &pcb[pcbidx].list);
+	spin_lock_release(&ready_queue_lock);
+	spin_lock_release(&pcb[pcbidx].lock);
+	*tidptr = pcb[pcbidx].pid;
+	return 0;
 }

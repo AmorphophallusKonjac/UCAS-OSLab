@@ -112,7 +112,7 @@ void sys_bios_logging(char *buff)
 		       IGNORE);
 }
 
-int sys_thread_create(int *tidptr, long func, void *arg)
+int sys_thread_create(pthread_t *tidptr, long func, void *arg)
 {
 	return invoke_syscall(SYSCALL_THREAD_CREATE, (long)tidptr, func,
 			      (long)arg, IGNORE, IGNORE);
@@ -321,13 +321,13 @@ int sys_mbox_recv(int mbox_idx, void *msg, int msg_length)
 			      msg_length, IGNORE, IGNORE);
 }
 
-void* sys_shmpageget(int key)
+void *sys_shmpageget(int key)
 {
-    /* TODO: [p4-task4] call invoke_syscall to implement sys_shmpageget */
+	/* TODO: [p4-task4] call invoke_syscall to implement sys_shmpageget */
 }
 
 void sys_shmpagedt(void *addr)
 {
-    /* TODO: [p4-task4] call invoke_syscall to implement sys_shmpagedt */
+	/* TODO: [p4-task4] call invoke_syscall to implement sys_shmpagedt */
 }
 /************************************************************/
