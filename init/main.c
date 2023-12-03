@@ -84,72 +84,23 @@ static void init_task_info(void)
 	       taskinfo_size);
 }
 
-static void init_tasks()
-{
-	for (int taskidx = 0; taskidx < task_num; ++taskidx) {
-		load_task_img(taskidx);
-	}
-	return;
-}
-
 /************************************************************/
-static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
-			   ptr_t entry_point, ptr_t arg, pcb_t *pcb)
-{
-	/* TODO: [p2-task3] initialization of registers on kernel stack
-      * HINT: sp, ra, sepc, sstatus
-      * NOTE: To run the task in user mode, you should set corresponding bits
-      *     of sstatus(SPP, SPIE, etc.).
-      */
-	regs_context_t *pt_regs =
-		(regs_context_t *)(kernel_stack - sizeof(regs_context_t));
-	for (int i = 0; i < 32; ++i)
-		pt_regs->regs[i] = 0;
-	pt_regs->regs[2] = (reg_t)user_stack; // sp
-	pt_regs->regs[4] = (reg_t)pcb; // tp
-	pt_regs->regs[1] = (reg_t)(entry_point + 2); // ra
-	pt_regs->regs[10] = (reg_t)arg; // a0
-	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
-	pt_regs->sstatus = ((reg_t)SR_SPIE & (reg_t)~SR_SPP) | (reg_t)SR_SUM;
-	pt_regs->sepc = (reg_t)entry_point;
-	pt_regs->sbadaddr = (reg_t)0;
-	pt_regs->scause = (reg_t)0;
-	/* TODO: [p2-task1] set sp to simulate just returning from switch_to
-     * NOTE: you should prepare a stack, and push some values to
-     * simulate a callee-saved context.
-     */
-	switchto_context_t *pt_switchto =
-		(switchto_context_t *)((ptr_t)pt_regs -
-				       sizeof(switchto_context_t));
-	for (int i = 0; i < 14; ++i)
-		pt_switchto->regs[i] = (reg_t)0;
-	// [p2-task1]
-	// pt_switchto->regs[0] = (reg_t) entry_point;         // ra
-	// [p2-task3]
-	// pt_switchto->regs[0] = (reg_t)ret_from_exception; // ra
-	// [p3-task5]
-	pt_switchto->regs[0] = (reg_t)forkret; // ra
-	pt_switchto->regs[1] = (reg_t)pt_switchto; // sp
-
-	pcb->kernel_sp = (reg_t)pt_switchto;
-	pcb->user_sp = user_stack;
-}
 
 static void init_pcb(void)
 {
 	/* TODO: [p2-task1] load needed tasks and init their corresponding PCB */
 	char needed_task_name[][32] = { "shell" };
-	pid0_pcb[0].kernel_sp = allocPage() + PAGE_SIZE;
+	pid0_pcb[0].kernel_sp = allocPage(0, 0, PINNED) + PAGE_SIZE;
 	pid0_pcb[0].user_sp = pid0_pcb[0].kernel_sp;
-	pid0_pcb[0].pagedir = initPgtable();
+	pid0_pcb[0].pagedir = initPgtable(0);
 
-	pid0_pcb[1].kernel_sp = allocPage() + PAGE_SIZE;
+	pid0_pcb[1].kernel_sp = allocPage(0, 0, PINNED) + PAGE_SIZE;
 	pid0_pcb[1].user_sp = pid0_pcb[1].kernel_sp;
-	pid0_pcb[1].pagedir = initPgtable();
+	pid0_pcb[1].pagedir = initPgtable(0);
 
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
-		pcb[i].kernel_stack_base = allocPage() + PAGE_SIZE;
-		pcb[i].user_stack_base = 0xf00010000lu;
+		pcb[i].kernel_stack_base = allocPage(0, 0, PINNED);
+		pcb[i].user_stack_base = 0xf0000f000;
 		pcb[i].status = TASK_EXITED;
 		pcb[i].list.next = &pcb[i].list;
 		pcb[i].list.prev = &pcb[i].list;
@@ -166,10 +117,13 @@ static void init_pcb(void)
 		pcb[i].cursor_y = 0;
 		pcb[i].wakeup_time = 0;
 		pcb[i].cpuMask = 3;
-		init_pcb_stack(pcb[i].kernel_stack_base, pcb[i].user_stack_base,
-			       getEntrypoint(needed_task_name[i]), 0, pcb + i);
+		pcb[i].pagedir = initPgtable(pcb[i].pid);
+		init_pcb_stack(pcb[i].kernel_stack_base + PAGE_SIZE,
+			       pcb[i].user_stack_base + PAGE_SIZE,
+			       getEntrypoint(needed_task_name[i]), pcb + i, 0,
+			       0);
 		list_push(&ready_queue, &pcb[i].list);
-		pcb[i].pagedir = initPgtable();
+		pcb[i].pagedir = initPgtable(pcb[i].pid);
 		from_name_load_task_img(needed_task_name[i], &pcb[i]);
 	}
 
@@ -289,6 +243,7 @@ int main(void)
 
 		// Init Physical memory allocator
 		initkmem();
+		bios_putstr("[INIT] Memory initialization succeeded.\n\r");
 
 		// Init Process Control Blocks |•'-'•) ✧
 		init_pcb();
@@ -329,20 +284,25 @@ int main(void)
 		init_screen();
 		printk("> [INIT] SCREEN initialization succeeded.\n");
 
+		printk("> [INIT] CPU0 starting.\n");
+
 		smp_init();
 		wakeup_other_hart();
 		clear_SIP();
 
 	} else {
-		lock_kernel();
+		unmapBoot();
+		// lock_kernel();
 		cpu[1].current_running = &pid0_pcb[1];
 		cpu[1].pid = 0;
 		asm volatile(
 			"mv tp, %0;"
 			:
 			: "r"(cpu[1].current_running)); // set tp = current_running
-		unlock_kernel();
+		// unlock_kernel();
 		setup_exception();
+		screen_move_cursor(0, 2);
+		printk("> [INIT] CPU1 starting.\n");
 	}
 
 	// [p2-task4] set the first time interupt

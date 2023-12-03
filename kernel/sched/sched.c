@@ -165,21 +165,30 @@ void do_unblock(list_node_t *pcb_node)
 	spin_lock_release(&NODE2PCB(pcb_node)->lock);
 }
 
-static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
-			   ptr_t entry_point, pcb_t *pcb, int argc,
-			   char *argv[])
+void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
+		    pcb_t *pcb, int argc, char *argv[])
 {
 	// [p3-task1] set user stack for argv
-	char **argvStack = (char **)(user_stack - 8 * (argc + 1));
-	pcb->user_sp = (reg_t)argvStack;
+	ptr_t vUserSp = user_stack;
+	ptr_t pUserSp = allocPage(pcb->pid, 0, PINNED);
+	map_page(vUserSp - PAGE_SIZE, kva2pa((uintptr_t)pUserSp), pcb->pagedir,
+		 pcb->pid);
+	pUserSp += PAGE_SIZE;
+	char **pArgvStack = (char **)(pUserSp - 8 * (argc + 1));
+	char **vArgvStack = (char **)(vUserSp - 8 * (argc + 1));
+	pUserSp = (ptr_t)pArgvStack;
+	vUserSp = (ptr_t)vArgvStack;
 	for (int i = 0; i < argc; ++i) {
-		pcb->user_sp -= strlen(argv[i]) + 1;
-		argvStack[i] = (char *)pcb->user_sp;
-		strcpy(argvStack[i], argv[i]);
+		vUserSp -= strlen(argv[i]) + 1;
+		pUserSp -= strlen(argv[i]) + 1;
+		strcpy((char *)pUserSp, argv[i]);
+		pArgvStack[i] = (char *)vUserSp;
 	}
-	argvStack[argc] = NULL;
-	bzero((void *)(pcb->user_sp - (pcb->user_sp % 16)), pcb->user_sp % 16);
-	pcb->user_sp -= (pcb->user_sp % 16);
+	pArgvStack[argc] = NULL;
+	bzero((void *)(pUserSp - (pUserSp % 16)), pUserSp % 16);
+	pUserSp -= (pUserSp % 16);
+	vUserSp -= (vUserSp % 16);
+	pcb->user_sp = vUserSp;
 	/* TODO: [p2-task3] initialization of registers on kernel stack
       * HINT: sp, ra, sepc, sstatus
       * NOTE: To run the task in user mode, you should set corresponding bits
@@ -193,9 +202,9 @@ static void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack,
 	pt_regs->regs[4] = (reg_t)pcb; // tp
 	pt_regs->regs[1] = (reg_t)(entry_point + 2);
 	pt_regs->regs[10] = (reg_t)argc;
-	pt_regs->regs[11] = (reg_t)argvStack;
+	pt_regs->regs[11] = (reg_t)vArgvStack;
 	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
-	pt_regs->sstatus = (reg_t)SR_SPIE & ~SR_SPP;
+	pt_regs->sstatus = ((reg_t)SR_SPIE & (reg_t)~SR_SPP) | (reg_t)SR_SUM;
 	pt_regs->sepc = (reg_t)entry_point;
 	pt_regs->sbadaddr = (reg_t)0;
 	pt_regs->scause = (reg_t)0;
@@ -250,13 +259,16 @@ pid_t do_exec(char *name, int argc, char *argv[])
 		spin_lock_release(&pcb[i].lock);
 	}
 	assert(pcbidx != -1);
-	init_pcb_stack(pcb[pcbidx].kernel_stack_base,
-		       pcb[pcbidx].user_stack_base, getEntrypoint(name),
+	pcb[pcbidx].pid = process_id++;
+	pcb[pcbidx].pagedir = initPgtable(pcb[pcbidx].pid);
+	from_name_load_task_img(name, &pcb[pcbidx]);
+	// TODO: fix init_pcb_stack for access for user stack
+	init_pcb_stack(pcb[pcbidx].kernel_stack_base + PAGE_SIZE,
+		       pcb[pcbidx].user_stack_base + PAGE_SIZE, entrypoint,
 		       pcb + pcbidx, argc, argv);
 	pcb[pcbidx].status = TASK_READY;
 	pcb[pcbidx].cursor_x = 0;
 	pcb[pcbidx].cursor_y = 0;
-	pcb[pcbidx].pid = process_id++;
 	pcb[pcbidx].tid = 0;
 	pcb[pcbidx].wakeup_time = 0;
 	pcb[pcbidx].cpuMask = current_running->cpuMask;
@@ -270,7 +282,6 @@ pid_t do_exec(char *name, int argc, char *argv[])
 
 int do_kill(pid_t pid)
 {
-	/* TODO: solve problem of kill task running on other core */
 	int pcbidx = -1;
 	for (int i = 0; i < NUM_MAX_TASK; ++i) {
 		spin_lock_acquire(&pcb[i].lock);
@@ -318,8 +329,10 @@ void do_exit(void)
 	current_running->status = TASK_EXITED;
 	current_running->cursor_x = 0;
 	current_running->cursor_y = 0;
-	current_running->kernel_sp = current_running->kernel_stack_base;
-	current_running->user_sp = current_running->user_stack_base;
+	current_running->kernel_sp =
+		current_running->kernel_stack_base + PAGE_SIZE;
+	current_running->user_sp = current_running->user_stack_base + PAGE_SIZE;
+	unmapPageDir(current_running->pid);
 	current_running->pid = 0;
 	current_running->tid = 0;
 	current_running->wakeup_time = 0;
@@ -392,4 +405,17 @@ int do_taskset(pid_t pid, int mask)
 		spin_lock_release(&pcb[i].lock);
 	}
 	return 1;
+}
+
+pcb_t *pid2pcb(int pid)
+{
+	int ret = 0;
+	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
+		if (pid == pcb[i].pid) {
+			ret = i;
+		}
+		spin_lock_release(&pcb[i].lock);
+	}
+	return &pcb[ret];
 }

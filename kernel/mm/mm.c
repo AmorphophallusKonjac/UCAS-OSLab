@@ -1,42 +1,64 @@
 #include <os/mm.h>
 #include <os/lock.h>
+#include <os/sched.h>
+#include <os/page.h>
+#include <assert.h>
 
 // NOTE: A/C-core
+
+int addr2idx(ptr_t addr)
+{
+	return (addr - FREEMEM_KERNEL) / PAGE_SIZE;
+}
+
+int idx2sectorIdx(int idx)
+{
+	return idx * 8;
+}
+
 static ptr_t kernMemCurr = FREEMEM_KERNEL;
-
-struct freeList {
-	struct freeList *next;
-};
-
-struct {
-	spin_lock_t lock;
-	struct freeList *kmem;
-} kmem;
 
 void initkmem()
 {
+	for (int i = 0; i < MEM_PAGE_NUMS; ++i) {
+		spin_lock_init(&mempgcb[i].lock);
+		mempgcb[i].pid = 0;
+		mempgcb[i].status = FREE;
+		mempgcb[i].vaddr = 0;
+	}
 	for (ptr_t i = FREEMEM_KERNEL; i < 0xffffffc060000000lu;
 	     i += PAGE_SIZE) {
-		freePage(i);
+		int idx = addr2idx(i);
+		spin_lock_init(&pgcb[idx].lock);
+		pgcb[idx].addr = i;
+		pgcb[idx].status = FREE;
+		pgcb[idx].pin = UNPINNED;
+		pgcb[idx].pid = 0;
+		pgcb[idx].vaddr = 0;
 	}
 }
 
-ptr_t allocPage()
+ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 {
-	// align PAGE_SIZE
-	// ptr_t ret = ROUND(kernMemCurr, PAGE_SIZE);
-	// kernMemCurr = ret + numPage * PAGE_SIZE;
-	// return ret;
-	struct freeList *ret;
-	spin_lock_acquire(&kmem.lock);
-	ret = kmem.kmem;
-	if (ret)
-		kmem.kmem = ret->next;
-	spin_lock_release(&kmem.lock);
-	for (int i = 0; i < PAGE_SIZE; ++i) {
-		((char *)ret)[i] = 0;
+	pgcb_t *pg = NULL;
+	for (int i = 0; i < PAGE_NUMS; ++i) {
+		spin_lock_acquire(&pgcb[i].lock);
+		if (pgcb[i].status == FREE) {
+			pg = &pgcb[i];
+			break;
+		}
+		spin_lock_release(&pgcb[i].lock);
 	}
-	return (ptr_t)ret;
+	if (pg == NULL) {
+		swapOut();
+	}
+	pg->status = ALLOC;
+	pg->pid = pid;
+	pg->vaddr = vaddr;
+	pg->pin = pin;
+	clear_pgdir(pg->addr);
+	spin_lock_release(&pg->lock);
+	return pg->addr;
 }
 
 // NOTE: Only need for S-core to alloc 2MB large page
@@ -51,14 +73,16 @@ ptr_t allocLargePage(int numPage)
 }
 #endif
 
-void freePage(ptr_t baseAddr)
+void freePage(pgcb_t *pg)
 {
 	// TODO [P4-task1] (design you 'freePage' here if you need):
-	struct freeList *ret = (struct freeList *)baseAddr;
-	spin_lock_acquire(&kmem.lock);
-	ret->next = kmem.kmem;
-	kmem.kmem = ret;
-	spin_lock_release(&kmem.lock);
+	spin_lock_acquire(&pg->lock);
+	clear_pgdir(pg->addr);
+	pg->status = FREE;
+	pg->pin = UNPINNED;
+	pg->pid = 0;
+	pg->vaddr = 0;
+	spin_lock_release(&pg->lock);
 }
 
 void *kmalloc(size_t size)

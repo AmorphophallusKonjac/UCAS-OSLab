@@ -65,7 +65,7 @@ static inline void set_satp(unsigned mode, unsigned asid, unsigned long ppn)
 	(1 << 6) /* Set by hardware on any access                  \
                               */
 #define _PAGE_DIRTY (1 << 7) /* Set by hardware on any write */
-#define _PAGE_SOFT (1 << 8) /* Reserved for software */
+#define _PAGE_SOFT_OUT (1 << 8) /* Reserved for software */
 
 #define _PAGE_PFN_SHIFT 10lu
 

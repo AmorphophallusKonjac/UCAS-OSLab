@@ -157,6 +157,9 @@ extern void forkret();
 void release_lock(void);
 void yield(void);
 void check_killed();
+pcb_t *pid2pcb(int pid);
+void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
+		    pcb_t *pcb, int argc, char *argv[]);
 
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/

@@ -34,6 +34,7 @@ void load_page_fault_handler(regs_context_t *regs, uint64_t stval,
 			     uint64_t scause)
 {
 	pcb_t *current_running = get_current_running();
+	int pid = current_running->pid;
 	PTE *firstPgdir = current_running->pagedir;
 	uint64_t va = stval;
 	va &= VA_MASK;
@@ -44,21 +45,24 @@ void load_page_fault_handler(regs_context_t *regs, uint64_t stval,
 			(va >> (NORMAL_PAGE_SHIFT));
 	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
 		set_pfn(&firstPgdir[vpn2],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, PINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&firstPgdir[vpn2], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(firstPgdir[vpn2])));
 	}
 	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
 	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
 		set_pfn(&secondPgdir[vpn1],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, PINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
 	}
 	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
 	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
 		set_pfn(&thirdPgdir[vpn0],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, UNPINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&thirdPgdir[vpn0],
 			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
 				      _PAGE_EXEC | _PAGE_USER);
@@ -73,6 +77,7 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 			      uint64_t scause)
 {
 	pcb_t *current_running = get_current_running();
+	int pid = current_running->pid;
 	PTE *firstPgdir = current_running->pagedir;
 	uint64_t va = stval;
 	va &= VA_MASK;
@@ -83,21 +88,24 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 			(va >> (NORMAL_PAGE_SHIFT));
 	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
 		set_pfn(&firstPgdir[vpn2],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, PINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&firstPgdir[vpn2], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(firstPgdir[vpn2])));
 	}
 	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
 	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
 		set_pfn(&secondPgdir[vpn1],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, PINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
 	}
 	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
 	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
 		set_pfn(&thirdPgdir[vpn0],
-			kva2pa(allocPage()) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(pid, (va >> 12) << 12, UNPINNED)) >>
+				NORMAL_PAGE_SHIFT);
 		set_attribute(&thirdPgdir[vpn0],
 			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
 				      _PAGE_EXEC | _PAGE_USER);

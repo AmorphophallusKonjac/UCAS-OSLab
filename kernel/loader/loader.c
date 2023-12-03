@@ -49,8 +49,8 @@ uint64_t from_name_load_task_img(char *name, pcb_t *pcb)
 	char buf[SECTOR_SIZE];
 	if (idx == -1)
 		return 1;
-	uint64_t kvpa = allocPage();
-	map_page(tasks[idx].entrypoint, kva2pa(kvpa), pcb->pagedir);
+	uint64_t kvpa = allocPage(pcb->pid, 0, PINNED);
+	map_page(tasks[idx].entrypoint, kva2pa(kvpa), pcb->pagedir, pcb->pid);
 	uint32_t task_sector_id = tasks[idx].offset / SECTOR_SIZE;
 	bios_sd_read((unsigned int)kva2pa((uintptr_t)buf), 1, task_sector_id++);
 	for (int i = 0; i < tasks[idx].size; ++i) {
@@ -59,9 +59,9 @@ uint64_t from_name_load_task_img(char *name, pcb_t *pcb)
 				     task_sector_id++);
 		}
 		if (i && i % PAGE_SIZE == 0) {
-			kvpa = allocPage();
+			kvpa = allocPage(pcb->pid, 0, PINNED);
 			map_page(tasks[idx].entrypoint + i, kva2pa(kvpa),
-				 pcb->pagedir);
+				 pcb->pagedir, pcb->pid);
 		}
 		((char *)kvpa)[i % PAGE_SIZE] =
 			buf[(i + tasks[idx].offset) % SECTOR_SIZE];

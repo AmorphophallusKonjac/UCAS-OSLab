@@ -28,6 +28,11 @@
 #ifndef MM_H
 #define MM_H
 
+#define PAGE_NUMS 57344
+#define MEM_PAGE_NUMS 28672
+
+#include <os/list.h>
+#include <os/lock.h>
 #include <pgtable.h>
 #include <type.h>
 
@@ -42,9 +47,36 @@
 #define ROUND(a, n) (((((uint64_t)(a)) + (n)-1)) & ~((n)-1))
 #define ROUNDDOWN(a, n) (((uint64_t)(a)) & ~((n)-1))
 
-extern ptr_t allocPage();
+typedef enum { PINNED, UNPINNED } pg_pin_status_t;
+typedef enum { FREE, ALLOC } pg_status_t;
+
+typedef struct pgcb {
+	spin_lock_t lock;
+	ptr_t addr;
+	pg_status_t status;
+	pg_pin_status_t pin;
+
+	int pid;
+	uint64_t vaddr;
+} pgcb_t;
+
+pgcb_t pgcb[PAGE_NUMS];
+
+typedef struct mempgcb {
+	spin_lock_t lock;
+	pg_status_t status;
+	int pid;
+	uint64_t vaddr;
+} mempgcb_t;
+
+mempgcb_t mempgcb[MEM_PAGE_NUMS];
+
+int addr2idx(ptr_t addr);
+int idx2sectorIdx(int idx);
+
+ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin);
 // TODO [P4-task1] */
-void freePage(ptr_t baseAddr);
+void freePage(pgcb_t *pg);
 
 // #define S_CORE
 // NOTE: only need for S-core to alloc 2MB large page
