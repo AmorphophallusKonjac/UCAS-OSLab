@@ -132,10 +132,49 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 					      _PAGE_EXEC | _PAGE_USER);
 		}
 	} else {
-		set_attribute(&thirdPgdir[vpn0],
-			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
-				      _PAGE_EXEC | _PAGE_ACCESSED |
-				      _PAGE_DIRTY | _PAGE_USER);
+		if (get_attribute(thirdPgdir[vpn0], _PAGE_SOFT_FORK) != 0) {
+			PTE *entry = NULL;
+			for (int i = 0; i < NUM_MAX_TASK; ++i) {
+				if (&pcb[i] == current_running)
+					continue;
+				spin_lock_acquire(&pcb[i].lock);
+				if (pcb[i].status != TASK_EXITED &&
+				    valid_va(va, pcb[i].pagedir)) {
+					entry = getEntry(pcb[i].pagedir, va);
+					if (get_attribute(*entry,
+							  _PAGE_SOFT_FORK) !=
+						    0 &&
+					    get_pa(*entry) ==
+						    get_pa(thirdPgdir[vpn0])) {
+						set_attribute(
+							entry,
+							get_attribute(
+								*entry,
+								1023 ^ _PAGE_SOFT_FORK));
+						spin_lock_release(&pcb[i].lock);
+						break;
+					}
+				}
+				spin_lock_release(&pcb[i].lock);
+			}
+			ptr_t old_addr = pa2kva(get_pa(thirdPgdir[vpn0]));
+			int pin = pgcb[addr2idx(old_addr)].pin;
+			ptr_t addr = allocPage(current_running->pid,
+					       (va >> NORMAL_PAGE_SHIFT)
+						       << NORMAL_PAGE_SHIFT,
+					       pin);
+			memcpy((uint8_t *)addr, (uint8_t *)old_addr, PAGE_SIZE);
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(addr) >> NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      get_attribute(thirdPgdir[vpn0],
+						    1023 ^ _PAGE_SOFT_FORK));
+		} else {
+			set_attribute(&thirdPgdir[vpn0],
+				      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+					      _PAGE_EXEC | _PAGE_ACCESSED |
+					      _PAGE_DIRTY | _PAGE_USER);
+		}
 	}
 }
 

@@ -23,6 +23,7 @@ void sys_screen_clear(void);
 void sys_hidden_cursor(void);
 void sys_show_cursor(void);
 int sys_taskset(pid_t pid, int mask);
+int sys_fork();
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */

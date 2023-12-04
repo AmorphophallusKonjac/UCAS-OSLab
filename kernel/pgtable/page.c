@@ -124,7 +124,8 @@ pgcb_t *swapOut()
 			}
 			spin_lock_release(&pgcb[i].lock);
 		}
-		i = 0;
+		if (i >= PAGE_NUMS)
+			i = 0;
 	}
 	if (pg->status == FREE) {
 		return pg;

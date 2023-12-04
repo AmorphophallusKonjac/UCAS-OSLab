@@ -78,8 +78,6 @@ typedef struct pcb {
 	list_node_t list;
 	list_head wait_list;
 
-	spin_lock_t list_lock;
-
 	uint64_t cpuID;
 	int cpuMask;
 
@@ -163,6 +161,7 @@ pcb_t *pid2pcb(int pid);
 void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
 		    pcb_t *pcb, int argc, char *argv[]);
 int thread_create(int *tidptr, long func, void *arg);
+int do_fork();
 /************************************************************/
 /* TODO [P3-TASK1] exec exit kill waitpid ps*/
 #ifdef S_CORE

@@ -7,6 +7,7 @@
 #include <os/loader.h>
 #include <os/string.h>
 #include <os/smp.h>
+#include <os/page.h>
 #include <screen.h>
 #include <printk.h>
 #include <assert.h>
@@ -200,9 +201,9 @@ void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
 		pt_regs->regs[i] = 0;
 	pt_regs->regs[2] = (reg_t)pcb->user_sp; // sp
 	pt_regs->regs[4] = (reg_t)pcb; // tp
-	pt_regs->regs[1] = (reg_t)(entry_point + 2);
-	pt_regs->regs[10] = (reg_t)argc;
-	pt_regs->regs[11] = (reg_t)vArgvStack;
+	pt_regs->regs[1] = (reg_t)(entry_point + 2); // ra
+	pt_regs->regs[10] = (reg_t)argc; // a0
+	pt_regs->regs[11] = (reg_t)vArgvStack; // a1
 	// When a trap is taken, SPP is set to 0 if the trap originated from user mode, or 1 otherwise.
 	pt_regs->sstatus = ((reg_t)SR_SPIE & (reg_t)~SR_SPP) | (reg_t)SR_SUM;
 	pt_regs->sepc = (reg_t)entry_point;
@@ -502,4 +503,67 @@ int thread_create(int *tidptr, long entrypoint, void *arg)
 	spin_lock_release(&pcb[pcbidx].lock);
 	*tidptr = pcb[pcbidx].pid;
 	return 0;
+}
+
+int do_fork()
+{
+	pcb_t *current_running = get_current_running();
+	int pcbidx = -1;
+	for (int i = 0; i < NUM_MAX_TASK; ++i) {
+		spin_lock_acquire(&pcb[i].lock);
+		if (pcb[i].status == TASK_EXITED) {
+			pcbidx = i;
+			break;
+		}
+		spin_lock_release(&pcb[i].lock);
+	}
+	assert(pcbidx != -1);
+	pcb[pcbidx].status = TASK_READY;
+	spin_lock_acquire(&ready_queue_lock);
+	list_push(&ready_queue, &pcb[pcbidx].list);
+	spin_lock_release(&ready_queue_lock);
+	int ch_pid = process_id++;
+	pcb[pcbidx].kernel_sp = current_running->kernel_sp +
+				pcb[pcbidx].kernel_stack_base -
+				current_running->kernel_stack_base;
+	pcb[pcbidx].user_sp = current_running->user_sp;
+	pcb[pcbidx].user_stack_base = current_running->user_stack_base;
+	pcb[pcbidx].cpuMask = current_running->cpuMask;
+	pcb[pcbidx].pid = ch_pid;
+	pcb[pcbidx].cursor_x = current_running->cursor_x;
+	pcb[pcbidx].cursor_y = current_running->cursor_y;
+	pcb[pcbidx].wakeup_time = current_running->wakeup_time;
+	pcb[pcbidx].killed = current_running->killed;
+	pcb[pcbidx].pagedir = initPgtable(pcb[pcbidx].pid);
+	pcb[pcbidx].next_stack_base = current_running->next_stack_base;
+	memcpy((uint8_t *)pcb[pcbidx].kernel_stack_base,
+	       (uint8_t *)current_running->kernel_stack_base, PAGE_SIZE);
+	regs_context_t *pt_regs = (regs_context_t *)pcb[pcbidx].kernel_sp;
+	pt_regs->regs[10] = (reg_t)0;
+
+	switchto_context_t *pt_switchto =
+		(switchto_context_t *)((ptr_t)pt_regs -
+				       sizeof(switchto_context_t));
+	for (int i = 0; i < 14; ++i)
+		pt_switchto->regs[i] = (reg_t)0;
+	pt_switchto->regs[0] = (reg_t)forkret; // ra
+	pt_switchto->regs[1] = (reg_t)pt_switchto; // sp
+
+	pcb[pcbidx].kernel_sp = (reg_t)pt_switchto;
+
+	for (uintptr_t i = 0; i < 0x0000003ffffffffflu; i += PAGE_SIZE) {
+		if (valid_va(i, current_running->pagedir)) {
+			PTE *entry = getEntry(current_running->pagedir, i);
+			map_page(i, get_pa(*entry), pcb[pcbidx].pagedir,
+				 pcb[pcbidx].pid);
+			PTE *new_entry = getEntry(pcb[pcbidx].pagedir, i);
+			long bits = get_attribute(*entry, 1023 ^ _PAGE_DIRTY) |
+				    _PAGE_SOFT_FORK;
+			set_attribute(new_entry, bits);
+			set_attribute(entry, bits);
+		}
+	}
+	spin_lock_release(&pcb[pcbidx].lock);
+
+	return ch_pid;
 }
