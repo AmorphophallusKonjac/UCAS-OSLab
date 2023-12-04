@@ -124,7 +124,6 @@ static void init_pcb(void)
 			       getEntrypoint(needed_task_name[i]), pcb + i, 0,
 			       0);
 		list_push(&ready_queue, &pcb[i].list);
-		pcb[i].pagedir = initPgtable(pcb[i].pid);
 		from_name_load_task_img(needed_task_name[i], &pcb[i]);
 	}
 
