@@ -158,6 +158,7 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 				spin_lock_release(&pcb[i].lock);
 			}
 			ptr_t old_addr = pa2kva(get_pa(thirdPgdir[vpn0]));
+			--pgcb[addr2idx(old_addr)].cnt;
 			int pin = pgcb[addr2idx(old_addr)].pin;
 			ptr_t addr = allocPage(current_running->pid,
 					       (va >> NORMAL_PAGE_SHIFT)

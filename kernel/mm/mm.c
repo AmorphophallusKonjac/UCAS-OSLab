@@ -61,6 +61,7 @@ ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 	pg->pid = pid;
 	pg->vaddr = vaddr;
 	pg->pin = pin;
+	pg->cnt = 1;
 	clear_pgdir(pg->addr);
 	spin_lock_release(&pg->lock);
 	printl("process %d alloc page %d, vaddr = %X, pin = %d\n", pid,

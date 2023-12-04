@@ -28,7 +28,7 @@
 #ifndef MM_H
 #define MM_H
 
-// #define TEST_SWAP
+#define TEST_SWAP
 
 #ifdef TEST_SWAP
 #define PAGE_NUMS 50
@@ -64,6 +64,7 @@ typedef struct pgcb {
 	ptr_t addr;
 	pg_status_t status;
 	pg_pin_status_t pin;
+	int cnt;
 
 	int pid;
 	uint64_t vaddr;
