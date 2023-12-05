@@ -28,17 +28,17 @@
 #ifndef MM_H
 #define MM_H
 
-#define TEST_SWAP
+// #define TEST_SWAP
 
 #ifdef TEST_SWAP
 #define PAGE_NUMS 50
 #else
-#define PAGE_NUMS 57344
+#define PAGE_NUMS 1000
 #endif
 
 #define SHARE_PAGE_NUMS 16
 
-#define MEM_PAGE_NUMS 28672
+#define MEM_PAGE_NUMS 1000
 
 #include <os/list.h>
 #include <os/lock.h>

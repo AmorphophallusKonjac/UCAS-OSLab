@@ -115,8 +115,8 @@ void do_scheduler(void)
 	cpu[cpuID].pid = cpu[cpuID].current_running->pid;
 	// printl("cpu %d:   switch pid %d   to   pid %d\n", get_current_cpu_id(),
 	//        prev_running->pid, cpu[cpuID].current_running->pid);
+	// printl("ready_queue: ");
 	// list_print(&ready_queue);
-	// printl("\n");
 	set_satp(SATP_MODE_SV39, cpu[cpuID].current_running->pid,
 		 kva2pa((uintptr_t)cpu[cpuID].current_running->pagedir) >>
 			 NORMAL_PAGE_SHIFT);
@@ -171,7 +171,7 @@ void init_pcb_stack(ptr_t kernel_stack, ptr_t user_stack, ptr_t entry_point,
 {
 	// [p3-task1] set user stack for argv
 	ptr_t vUserSp = user_stack;
-	ptr_t pUserSp = allocPage(pcb->pid, 0, PINNED);
+	ptr_t pUserSp = allocPage(pcb->pid, vUserSp - PAGE_SIZE, PINNED);
 	map_page(vUserSp - PAGE_SIZE, kva2pa((uintptr_t)pUserSp), pcb->pagedir,
 		 pcb->pid);
 	pUserSp += PAGE_SIZE;
@@ -276,6 +276,8 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	spin_lock_acquire(&ready_queue_lock);
 	list_push(&ready_queue, &pcb[pcbidx].list);
 	spin_lock_release(&ready_queue_lock);
+	printl("ready_queue: ");
+	list_print(&ready_queue);
 	spin_lock_release(&pcb[pcbidx].lock);
 	return pcb[pcbidx].pid;
 }
@@ -321,6 +323,7 @@ void do_exit(void)
 {
 	uint64_t cpuID = get_current_cpu_id();
 	pcb_t *volatile current_running = cpu[cpuID].current_running;
+	printl("pid %d exit\n", current_running->pid);
 	spin_lock_acquire(&current_running->lock);
 	while (!list_empty(&current_running->wait_list)) {
 		do_unblock(list_front(&current_running->wait_list));
@@ -527,13 +530,19 @@ void fork_copy_pgtable(PTE *dest, PTE *src, int pid)
 				map_page(va, get_pa(*entry), dest, pid);
 				PTE *new_entry = getEntry(dest, va);
 				long bits = get_attribute(*entry,
-							  1023 ^ _PAGE_DIRTY) |
+							  1023 ^ _PAGE_WRITE) |
 					    _PAGE_SOFT_FORK;
 				set_attribute(new_entry, bits);
 				set_attribute(entry, bits);
+				// long entry_new_bits =
+				// 	get_attribute(*entry, 1023);
+				// long new_entry_new_bits =
+				// 	get_attribute(*new_entry, 1023);
 				uint64_t kva = pa2kva(get_pa(*entry));
 				int idx = addr2idx(kva);
 				++pgcb[idx].cnt;
+				printl("page %d add cnt, cnt = %d\n", idx,
+				       pgcb[idx].cnt);
 			}
 		}
 	}
@@ -553,9 +562,6 @@ int do_fork()
 	}
 	assert(pcbidx != -1);
 	pcb[pcbidx].status = TASK_READY;
-	spin_lock_acquire(&ready_queue_lock);
-	list_push(&ready_queue, &pcb[pcbidx].list);
-	spin_lock_release(&ready_queue_lock);
 	int ch_pid = process_id++;
 	pcb[pcbidx].kernel_sp = current_running->kernel_sp +
 				pcb[pcbidx].kernel_stack_base -
@@ -601,9 +607,14 @@ int do_fork()
 	// 		set_attribute(entry, bits);
 	// 	}
 	// }
+	spin_lock_acquire(&ready_queue_lock);
+	list_push(&ready_queue, &pcb[pcbidx].list);
+	spin_lock_release(&ready_queue_lock);
+	printl("ready_queue: ");
+	list_print(&ready_queue);
 	spin_lock_release(&pcb[pcbidx].lock);
 
-	do_exit();
+	// do_exit();
 
 	return ch_pid;
 }

@@ -47,12 +47,13 @@ ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 {
 	pgcb_t *pg = NULL;
 	for (int i = 0; i < PAGE_NUMS; ++i) {
-		spin_lock_acquire(&pgcb[i].lock);
-		if (pgcb[i].status == FREE) {
-			pg = &pgcb[i];
-			break;
+		if (spin_lock_try_acquire(&pgcb[i].lock)) {
+			if (pgcb[i].status == FREE) {
+				pg = &pgcb[i];
+				break;
+			}
+			spin_lock_release(&pgcb[i].lock);
 		}
-		spin_lock_release(&pgcb[i].lock);
 	}
 	if (pg == NULL) {
 		pg = swapOut();
@@ -64,7 +65,7 @@ ptr_t allocPage(int pid, uint64_t vaddr, pg_pin_status_t pin)
 	pg->cnt = 1;
 	clear_pgdir(pg->addr);
 	spin_lock_release(&pg->lock);
-	printl("process %d alloc page %d, vaddr = %X, pin = %d\n", pid,
+	printl("process %d alloc page %d, vaddr = %lx, pin = %d\n", pid,
 	       addr2idx(pg->addr), vaddr, (pin == PINNED));
 	return pg->addr;
 }

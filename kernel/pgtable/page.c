@@ -34,6 +34,7 @@ void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid)
 		// alloc a new second-level page directory
 		set_pfn(&firstPgdir[vpn2],
 			kva2pa(allocPage(pid, 0, PINNED)) >> NORMAL_PAGE_SHIFT);
+		printl("for second level page table\n");
 		set_attribute(&firstPgdir[vpn2], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(firstPgdir[vpn2])));
 	}
@@ -41,6 +42,7 @@ void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid)
 	if (secondPgdir[vpn1] == 0) {
 		set_pfn(&secondPgdir[vpn1],
 			kva2pa(allocPage(pid, 0, PINNED)) >> NORMAL_PAGE_SHIFT);
+		printl("for third level page table\n");
 		set_attribute(&secondPgdir[vpn1], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(secondPgdir[vpn1])));
 	}
@@ -49,6 +51,7 @@ void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid)
 	set_attribute(&thirdPgdir[vpn0],
 		      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |
 			      _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_USER);
+	printl("pid %d map va %lx with pa %lx\n", pid, va, pa);
 }
 
 void unmapBoot()
@@ -66,8 +69,11 @@ void unmapPageDir(int pid)
 {
 	for (int i = 0; i < PAGE_NUMS; ++i) {
 		spin_lock_acquire(&pgcb[i].lock);
-		if (pgcb[i].cnt > 1)
+		if (pgcb[i].cnt > 1) {
+			--pgcb[i].cnt;
+			spin_lock_release(&pgcb[i].lock);
 			continue;
+		}
 		if (pgcb[i].pid == pid) {
 			pgcb[i].pid = 0;
 			pgcb[i].status = FREE;
@@ -90,6 +96,7 @@ void unmapPageDir(int pid)
 PTE *initPgtable(int pid)
 {
 	PTE *pgdir = (PTE *)allocPage(pid, 0, PINNED);
+	printl("for pagetable root\n");
 	clear_pgdir((uintptr_t)pgdir);
 	memcpy((uint8_t *)pgdir, (uint8_t *)pa2kva(PGDIR_PA), 0x1000);
 	for (uint64_t pa = 0x50000000lu; pa < 0x51000000lu; pa += 0x200000lu) {
@@ -152,7 +159,7 @@ pgcb_t *swapOut()
 			if (mempgcb[i].status == FREE) {
 				mempg = &mempgcb[i];
 				sector_idx = i * 8 + SECTOR_BASE;
-				printl("page %d swap out to mem page %d\n",
+				printl("page %d swap out to disk page %d\n",
 				       addr2idx(pg->addr), i);
 				break;
 			}
@@ -183,7 +190,7 @@ uintptr_t swapIn(uint64_t vaddr)
 			    mempgcb[i].pid == pid) {
 				mem_pg = &mempgcb[i];
 				sector_idx = i * 8 + SECTOR_BASE;
-				printl("mem page %d swap in to page %d\n", i,
+				printl("disk page %d swap in to page %d\n", i,
 				       addr2idx(addr));
 				break;
 			}
