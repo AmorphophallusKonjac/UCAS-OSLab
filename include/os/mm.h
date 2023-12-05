@@ -33,12 +33,12 @@
 #ifdef TEST_SWAP
 #define PAGE_NUMS 50
 #else
-#define PAGE_NUMS 57344
+#define PAGE_NUMS 1000
 #endif
 
 #define SHARE_PAGE_NUMS 16
 
-#define MEM_PAGE_NUMS 28672
+#define MEM_PAGE_NUMS 1000
 
 #include <os/list.h>
 #include <os/lock.h>
@@ -64,6 +64,7 @@ typedef struct pgcb {
 	ptr_t addr;
 	pg_status_t status;
 	pg_pin_status_t pin;
+	int cnt;
 
 	int pid;
 	uint64_t vaddr;

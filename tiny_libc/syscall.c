@@ -154,6 +154,12 @@ int sys_taskset(pid_t pid, int mask)
 			      IGNORE, IGNORE);
 }
 
+int sys_fork()
+{
+	return invoke_syscall(SYSCALL_FORK, IGNORE, IGNORE, IGNORE, IGNORE,
+			      IGNORE);
+}
+
 /************************************************************/
 #ifdef S_CORE
 pid_t sys_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2)

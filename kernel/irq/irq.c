@@ -11,6 +11,7 @@
 
 handler_t irq_table[IRQC_COUNT];
 handler_t exc_table[EXCC_COUNT];
+spin_lock_t copy_on_write_lock;
 
 void interrupt_helper(regs_context_t *regs, uint64_t stval, uint64_t scause)
 {
@@ -132,10 +133,67 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 					      _PAGE_EXEC | _PAGE_USER);
 		}
 	} else {
-		set_attribute(&thirdPgdir[vpn0],
-			      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
-				      _PAGE_EXEC | _PAGE_ACCESSED |
-				      _PAGE_DIRTY | _PAGE_USER);
+		if (get_attribute(thirdPgdir[vpn0], _PAGE_SOFT_FORK) != 0) {
+			spin_lock_acquire(&copy_on_write_lock);
+			printl("pid %d get copy on write lock\n",
+			       current_running->pid);
+			if (get_attribute(thirdPgdir[vpn0], _PAGE_SOFT_FORK) ==
+			    0) {
+				spin_lock_release(&copy_on_write_lock);
+				printl("pid %d release copy on write lock\n",
+				       current_running->pid);
+				return;
+			}
+			PTE *entry = NULL;
+			for (int i = 0; i < NUM_MAX_TASK; ++i) {
+				if (&pcb[i] == current_running)
+					continue;
+				spin_lock_acquire(&pcb[i].lock);
+				if (pcb[i].status != TASK_EXITED &&
+				    valid_va(va, pcb[i].pagedir)) {
+					entry = getEntry(pcb[i].pagedir, va);
+					if (get_attribute(*entry,
+							  _PAGE_SOFT_FORK) !=
+						    0 &&
+					    get_pa(*entry) ==
+						    get_pa(thirdPgdir[vpn0])) {
+						spin_lock_release(&pcb[i].lock);
+						break;
+					}
+				}
+				spin_lock_release(&pcb[i].lock);
+			}
+			ptr_t old_addr = pa2kva(get_pa(thirdPgdir[vpn0]));
+			printl("pid %d copy page %d va %lx\n",
+			       current_running->pid, addr2idx(old_addr), va);
+			spin_lock_acquire(&pgcb[addr2idx(old_addr)].lock);
+			--pgcb[addr2idx(old_addr)].cnt;
+			int pin = pgcb[addr2idx(old_addr)].pin;
+			ptr_t addr = allocPage(current_running->pid,
+					       (va >> NORMAL_PAGE_SHIFT)
+						       << NORMAL_PAGE_SHIFT,
+					       pin);
+			memcpy((uint8_t *)addr, (uint8_t *)old_addr, PAGE_SIZE);
+			set_pfn(&thirdPgdir[vpn0],
+				kva2pa(addr) >> NORMAL_PAGE_SHIFT);
+			set_attribute(&thirdPgdir[vpn0],
+				      get_attribute(thirdPgdir[vpn0],
+						    1023 ^ _PAGE_SOFT_FORK) |
+					      _PAGE_WRITE);
+			set_attribute(entry,
+				      get_attribute(*entry,
+						    1023 ^ _PAGE_SOFT_FORK) |
+					      _PAGE_WRITE);
+			spin_lock_release(&pgcb[addr2idx(old_addr)].lock);
+			spin_lock_release(&copy_on_write_lock);
+			printl("pid %d release copy on write lock\n",
+			       current_running->pid);
+		} else {
+			set_attribute(&thirdPgdir[vpn0],
+				      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+					      _PAGE_EXEC | _PAGE_ACCESSED |
+					      _PAGE_DIRTY | _PAGE_USER);
+		}
 	}
 }
 
@@ -146,26 +204,28 @@ void inst_page_fault_handler(regs_context_t *regs, uint64_t stval,
 	PTE *firstPgdir = current_running->pagedir;
 	uint64_t va = stval;
 	va &= VA_MASK;
+	printl("pid %d inst_page_fault\n", current_running->pid);
+	printl("va = %lx\n", va);
 	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
 	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
 			(va >> (NORMAL_PAGE_SHIFT + PPN_BITS));
 	uint64_t vpn0 = (vpn2 << (PPN_BITS + PPN_BITS)) ^ (vpn1 << PPN_BITS) ^
 			(va >> (NORMAL_PAGE_SHIFT));
 	if (get_attribute(firstPgdir[vpn2], _PAGE_PRESENT) == 0) {
-		printk("vpn2 error\n");
+		printl("vpn2 error\n");
 		assert(0);
 	}
 	PTE *secondPgdir = (PTE *)pa2kva(get_pa(firstPgdir[vpn2]));
 	if (get_attribute(secondPgdir[vpn1], _PAGE_PRESENT) == 0) {
-		printk("vpn1 error\n");
+		printl("vpn1 error\n");
 		assert(0);
 	}
 	PTE *thirdPgdir = (PTE *)pa2kva(get_pa(secondPgdir[vpn1]));
 	if (get_attribute(thirdPgdir[vpn0], _PAGE_PRESENT) == 0) {
-		printk("vpn0 error\n");
+		printl("vpn0 error\n");
 		assert(0);
 	} else {
-		printk("unknown error\n");
+		printl("unknown error\n");
 		assert(0);
 	}
 }

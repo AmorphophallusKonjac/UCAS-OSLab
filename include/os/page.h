@@ -21,7 +21,8 @@ void unmapPageDir(int pid);
 
 pgcb_t *swapOut(void);
 uintptr_t swapIn(uint64_t vaddr);
-int valid_va(uint64_t va, PTE *pgdir);
+int valid_va(uint64_t va, PTE *firstPgdir);
 PTE *getEntry(PTE *firstPgdir, uint64_t va);
+void set_fork(uint64_t va, PTE *firstPgdir);
 
 #endif
