@@ -230,6 +230,12 @@ void inst_page_fault_handler(regs_context_t *regs, uint64_t stval,
 	}
 }
 
+void handle_irq_ext(regs_context_t *regs, uint64_t stval, uint64_t scause)
+{
+	// TODO: [p5-task3] external interrupt handler.
+	// Note: plic_claim and plic_complete will be helpful ...
+}
+
 void init_exception()
 {
 	/* TODO: [p2-task3] initialize exc_table */
