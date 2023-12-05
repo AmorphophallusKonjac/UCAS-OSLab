@@ -595,18 +595,7 @@ int do_fork()
 
 	fork_copy_pgtable(pcb[pcbidx].pagedir, current_running->pagedir,
 			  pcb[pcbidx].pid);
-	// for (uintptr_t i = 0; i < 0x0000003ffffffffflu; i += PAGE_SIZE) {
-	// 	if (valid_va(i, current_running->pagedir)) {
-	// 		PTE *entry = getEntry(current_running->pagedir, i);
-	// 		map_page(i, get_pa(*entry), pcb[pcbidx].pagedir,
-	// 			 pcb[pcbidx].pid);
-	// 		PTE *new_entry = getEntry(pcb[pcbidx].pagedir, i);
-	// 		long bits = get_attribute(*entry, 1023 ^ _PAGE_DIRTY) |
-	// 			    _PAGE_SOFT_FORK;
-	// 		set_attribute(new_entry, bits);
-	// 		set_attribute(entry, bits);
-	// 	}
-	// }
+
 	spin_lock_acquire(&ready_queue_lock);
 	list_push(&ready_queue, &pcb[pcbidx].list);
 	spin_lock_release(&ready_queue_lock);
@@ -614,7 +603,8 @@ int do_fork()
 	list_print(&ready_queue);
 	spin_lock_release(&pcb[pcbidx].lock);
 
-	// do_exit();
+	local_flush_tlb_all();
+	local_flush_icache_all();
 
 	return ch_pid;
 }
