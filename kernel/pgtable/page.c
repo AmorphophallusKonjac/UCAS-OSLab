@@ -1,9 +1,18 @@
 #include <os/page.h>
 
+void map_huge_page(uint64_t va, uint64_t pa, PTE *pgdir)
+{
+	va &= VA_MASK;
+	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+	set_pfn(&pgdir[vpn2], (pa & ~((1lu << 30) - 1)) >> NORMAL_PAGE_SHIFT);
+	set_attribute(&pgdir[vpn2], _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
+					    _PAGE_EXEC | _PAGE_ACCESSED |
+					    _PAGE_DIRTY);
+	printl("pid %d map 1G va %lx with pa %lx\n", 0, va, pa);
+}
+
 void map_big_page(uint64_t va, uint64_t pa, PTE *pgdir)
 {
-	pcb_t *current_running = get_current_running();
-	int pid = current_running->pid;
 	va &= VA_MASK;
 	uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
 	uint64_t vpn1 = (vpn2 << PPN_BITS) ^
@@ -11,7 +20,8 @@ void map_big_page(uint64_t va, uint64_t pa, PTE *pgdir)
 	if (pgdir[vpn2] == 0) {
 		// alloc a new second-level page directory
 		set_pfn(&pgdir[vpn2],
-			kva2pa(allocPage(pid, 0, PINNED)) >> NORMAL_PAGE_SHIFT);
+			kva2pa(allocPage(0, 0, PINNED)) >> NORMAL_PAGE_SHIFT);
+		printl("for second level page table\n");
 		set_attribute(&pgdir[vpn2], _PAGE_PRESENT);
 		clear_pgdir(pa2kva(get_pa(pgdir[vpn2])));
 	}
@@ -20,6 +30,7 @@ void map_big_page(uint64_t va, uint64_t pa, PTE *pgdir)
 	set_attribute(&pmd[vpn1], _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |
 					  _PAGE_EXEC | _PAGE_ACCESSED |
 					  _PAGE_DIRTY);
+	printl("pid %d map 2M va %lx with pa %lx\n", 0, va, pa);
 }
 
 void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid)
@@ -51,7 +62,7 @@ void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid)
 	set_attribute(&thirdPgdir[vpn0],
 		      _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |
 			      _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_USER);
-	printl("pid %d map va %lx with pa %lx\n", pid, va, pa);
+	printl("pid %d map 4K page va %lx with pa %lx\n", pid, va, pa);
 }
 
 void unmapBoot()
@@ -63,6 +74,7 @@ void unmapBoot()
 		uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
 		early_pgdir[vpn2] = 0;
 	}
+	local_flush_tlb_all();
 }
 
 void unmapPageDir(int pid)
@@ -99,12 +111,6 @@ PTE *initPgtable(int pid)
 	printl("for pagetable root\n");
 	clear_pgdir((uintptr_t)pgdir);
 	memcpy((uint8_t *)pgdir, (uint8_t *)pa2kva(PGDIR_PA), 0x1000);
-	for (uint64_t pa = 0x50000000lu; pa < 0x51000000lu; pa += 0x200000lu) {
-		uint64_t va = pa;
-		va &= VA_MASK;
-		uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
-		pgdir[vpn2] = 0;
-	}
 	return pgdir;
 }
 

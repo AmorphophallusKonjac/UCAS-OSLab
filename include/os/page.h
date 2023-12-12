@@ -10,12 +10,15 @@
 #include <os/task.h>
 #include <os/smp.h>
 #include <assert.h>
+#include <os/ioremap.h>
 
 #define SECTOR_SIZE 512
 #define SECTOR_BASE 300
 
 PTE *initPgtable(int pid);
 void map_page(uint64_t va, uint64_t pa, PTE *firstPgdir, int pid);
+void map_huge_page(uint64_t va, uint64_t pa, PTE *pgdir);
+void map_big_page(uint64_t va, uint64_t pa, PTE *pgdir);
 void unmapBoot(void);
 void unmapPageDir(int pid);
 

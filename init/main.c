@@ -40,6 +40,8 @@
 #include <os/smp.h>
 #include <os/irq.h>
 #include <os/page.h>
+#include <os/net.h>
+#include <plic.h>
 #include <sys/syscall.h>
 #include <screen.h>
 #include <e1000.h>
@@ -51,6 +53,7 @@
 
 extern void ret_from_exception();
 extern void clear_SIP();
+extern void set_sstatus();
 #define VERSION_BUF 50
 #define OS_SIZE_LOC 0xffffffc0502001fclu
 #define STACK_PAGE_NUM 1
@@ -203,6 +206,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_MBOX_RECV] = (long (*)())do_mbox_recv;
 	syscall[SYSCALL_SHM_GET] = (long (*)())shm_page_get;
 	syscall[SYSCALL_SHM_DT] = (long (*)())shm_page_dt;
+	syscall[SYSCALL_NET_SEND] = (long (*)())do_net_send;
+	syscall[SYSCALL_NET_RECV] = (long (*)())do_net_recv;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
@@ -220,6 +225,7 @@ static void init_syscall(void)
 int main(void)
 {
 	if (get_current_cpu_id() == 0) {
+		unmapBoot();
 		// Check whether .bss section is set to zero
 		int check = bss_check();
 
@@ -250,24 +256,25 @@ int main(void)
 		initkmem();
 		bios_putstr("[INIT] Memory initialization succeeded.\n\r");
 
-		// Init Process Control Blocks |•'-'•) ✧
-		init_pcb();
-		printk("> [INIT] PCB initialization succeeded.\n");
-
 		// Read Flatten Device Tree (｡•ᴗ-)_
 		time_base = bios_read_fdt(TIMEBASE);
-		e1000 = (volatile uint8_t *)bios_read_fdt(EHTERNET_ADDR);
+		e1000 = (volatile uint8_t *)bios_read_fdt(ETHERNET_ADDR);
 		uint64_t plic_addr = bios_read_fdt(PLIC_ADDR);
 		uint32_t nr_irqs = (uint32_t)bios_read_fdt(NR_IRQS);
-		printk("> [INIT] e1000: %lx, plic_addr: %lx, nr_irqs: %lx.\n",
-		       e1000, plic_addr, nr_irqs);
+
+		// printk("> [INIT] e1000: %lx, plic_addr: %lx, nr_irqs: %lx.\n",
+		//    e1s000, plic_addr, nr_irqs);
 
 		// IOremap
 		plic_addr = (uintptr_t)ioremap((uint64_t)plic_addr,
 					       0x4000 * NORMAL_PAGE_SIZE);
 		e1000 = (uint8_t *)ioremap((uint64_t)e1000,
 					   8 * NORMAL_PAGE_SIZE);
-		printk("> [INIT] IOremap initialization succeeded.\n");
+		bios_putstr("> [INIT] IOremap initialization succeeded.\n");
+
+		// Init Process Control Blocks |•'-'•) ✧
+		init_pcb();
+		printk("> [INIT] PCB initialization succeeded.\n");
 
 		// Init lock mechanism o(´^｀)o
 		init_locks();
@@ -294,8 +301,16 @@ int main(void)
 		printk("> [INIT] Interrupt processing initialization succeeded.\n");
 
 		// TODO: [p5-task3] Init plic
-		// plic_init(plic_addr, nr_irqs);
-		// printk("> [INIT] PLIC initialized successfully. addr = 0x%lx, nr_irqs=0x%x\n", plic_addr, nr_irqs);
+		plic_init(plic_addr, nr_irqs);
+		printk("> [INIT] PLIC initialized successfully. addr = 0x%lx, nr_irqs=0x%x\n",
+		       plic_addr, nr_irqs);
+
+		// set_satp(SATP_MODE_SV39, pcb[0].pid,
+		// 	 (kva2pa((uintptr_t)pcb[0].pagedir)) >>
+		// 		 NORMAL_PAGE_SHIFT);
+		// local_flush_tlb_all();
+		// local_flush_icache_all();
+		// set_sstatus();
 
 		// Init network device
 		e1000_init();
