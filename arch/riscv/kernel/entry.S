@@ -52,10 +52,11 @@
    * Disable the FPU to detect illegal usage of floating point in kernel
    * space.
    */
-  li t0, SR_FS
-  csrrc t0, CSR_SSTATUS, t0
+  # li t0, SR_FS
+  # csrrc t0, CSR_SSTATUS, t0
 
   /* TODO: [p2-task3] save sstatus, sepc, stval and scause on kernel stack */
+  csrr t0, CSR_SSTATUS
   csrr t1, CSR_SEPC
   csrr t2, CSR_STVAL
   csrr t3, CSR_SCAUSE

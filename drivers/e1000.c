@@ -4,6 +4,7 @@
 #include <os/time.h>
 #include <assert.h>
 #include <pgtable.h>
+#include <printk.h>
 
 // E1000 Registers Base Pointer
 volatile uint8_t *e1000; // use virtual memory address
@@ -62,7 +63,7 @@ static void e1000_configure_tx(void)
 {
 	/* TODO: [p5-task1] Initialize tx descriptors */
 	for (int i = 0; i < TXDESCS; ++i) {
-		tx_desc_array[i].addr = (uint64_t)&tx_pkt_buffer[i];
+		tx_desc_array[i].addr = kva2pa((uintptr_t)&tx_pkt_buffer[i]);
 		tx_desc_array[i].length = TX_PKT_SIZE;
 		tx_desc_array[i].cmd = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
 		tx_desc_array[i].status = E1000_TXD_STAT_DD;
@@ -75,8 +76,8 @@ static void e1000_configure_tx(void)
 			(pa_tx_desc_array & ~((1lu << 32) - 1lu)) >> 32);
 	e1000_write_reg(e1000, E1000_TDLEN, sizeof(tx_desc_array));
 	/* TODO: [p5-task1] Set up the HW Tx Head and Tail descriptor pointers */
-	e1000_write_reg(e1000, E1000_TDH, 1);
-	e1000_write_reg(e1000, E1000_TDT, 1);
+	e1000_write_reg(e1000, E1000_TDH, 0);
+	e1000_write_reg(e1000, E1000_TDT, 0);
 	/* TODO: [p5-task1] Program the Transmit Control Register */
 	e1000_write_reg(e1000, E1000_TCTL,
 			E1000_TCTL_EN | E1000_TCTL_PSP |
@@ -91,15 +92,30 @@ static void e1000_configure_tx(void)
 static void e1000_configure_rx(void)
 {
 	/* TODO: [p5-task2] Set e1000 MAC Address to RAR[0] */
-
+	e1000_write_reg_array(e1000, E1000_RA, 0,
+			      (((uint32_t)enetaddr[3]) << 24) |
+				      (((uint32_t)enetaddr[2]) << 16) |
+				      (((uint32_t)enetaddr[1]) << 8) |
+				      ((uint32_t)enetaddr[0]));
+	e1000_write_reg_array(e1000, E1000_RA, 1,
+			      (((uint32_t)enetaddr[5]) << 8) |
+				      ((uint32_t)enetaddr[4]) | E1000_RAH_AV);
 	/* TODO: [p5-task2] Initialize rx descriptors */
-
+	for (int i = 0; i < RXDESCS; ++i) {
+		rx_desc_array[i].addr = kva2pa((uintptr_t)&rx_pkt_buffer[i]);
+	}
 	/* TODO: [p5-task2] Set up the Rx descriptor base address and length */
-
+	uint64_t pa_rx_desc_array = kva2pa((uintptr_t)rx_desc_array);
+	e1000_write_reg(e1000, E1000_RDBAL,
+			pa_rx_desc_array & ((1lu << 32) - 1lu));
+	e1000_write_reg(e1000, E1000_RDBAH,
+			(pa_rx_desc_array & ~((1lu << 32) - 1lu)) >> 32);
+	e1000_write_reg(e1000, E1000_RDLEN, sizeof(rx_desc_array));
 	/* TODO: [p5-task2] Set up the HW Rx Head and Tail descriptor pointers */
-
+	e1000_write_reg(e1000, E1000_RDH, 0);
+	e1000_write_reg(e1000, E1000_RDT, RX_PKT_SIZE - 1);
 	/* TODO: [p5-task2] Program the Receive Control Register */
-
+	e1000_write_reg(e1000, E1000_RCTL, E1000_RCTL_EN | E1000_RCTL_BAM);
 	/* TODO: [p5-task3] Enable RXDMT0 Interrupt */
 }
 
@@ -129,12 +145,18 @@ int e1000_transmit(void *txpacket, int length)
 	/* TODO: [p5-task1] Transmit one packet from txpacket */
 	local_flush_dcache();
 	int tail = e1000_read_reg(e1000, E1000_TDT);
+
+	while ((tx_desc_array[tail].status & E1000_TXD_STAT_DD) == 0) {
+		local_flush_dcache();
+	}
+
 	for (int i = 0; i < length; ++i) {
 		tx_pkt_buffer[tail][i] = ((char *)txpacket)[i];
 	}
 	tx_desc_array[tail].length = length;
-	// tx_desc_array[tail].cmd |= E1000_TXD_CMD_EOP;
+	tx_desc_array[tail].cmd |= E1000_TXD_CMD_EOP;
 	tx_desc_array[tail].status &= ~E1000_TXD_STAT_DD;
+
 	e1000_write_reg(e1000, E1000_TDT, (tail + 1) % TXDESCS);
 	local_flush_dcache();
 	return length;
@@ -148,6 +170,29 @@ int e1000_transmit(void *txpacket, int length)
 int e1000_poll(void *rxbuffer)
 {
 	/* TODO: [p5-task2] Receive one packet and put it into rxbuffer */
+	local_flush_dcache();
+	int tail = e1000_read_reg(e1000, E1000_RDT);
 
-	return 0;
+	tail = (tail + 1) % RXDESCS;
+
+	while ((rx_desc_array[tail].status & E1000_RXD_STAT_DD) == 0) {
+		local_flush_dcache();
+	}
+
+	int length = rx_desc_array[tail].length;
+
+	for (int i = 0; i < length; ++i) {
+		((char *)rxbuffer)[i] = rx_pkt_buffer[tail][i];
+	}
+
+	rx_desc_array[tail].length = 0;
+	rx_desc_array[tail].csum = 0;
+	rx_desc_array[tail].status = 0;
+	rx_desc_array[tail].errors = 0;
+	rx_desc_array[tail].special = 0;
+
+	e1000_write_reg(e1000, E1000_RDT, tail);
+	local_flush_dcache();
+
+	return length;
 }

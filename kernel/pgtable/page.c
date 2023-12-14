@@ -111,6 +111,12 @@ PTE *initPgtable(int pid)
 	printl("for pagetable root\n");
 	clear_pgdir((uintptr_t)pgdir);
 	memcpy((uint8_t *)pgdir, (uint8_t *)pa2kva(PGDIR_PA), 0x1000);
+	for (uint64_t pa = 0x50000000lu; pa < 0x51000000lu; pa += 0x200000lu) {
+		uint64_t va = pa;
+		va &= VA_MASK;
+		uint64_t vpn2 = va >> (NORMAL_PAGE_SHIFT + PPN_BITS + PPN_BITS);
+		pgdir[vpn2] = 0;
+	}
 	return pgdir;
 }
 

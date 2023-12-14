@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <csr.h>
 #include <pgtable.h>
+#include <e1000.h>
 
 extern void ret_from_exception();
 pcb_t pcb[NUM_MAX_TASK];

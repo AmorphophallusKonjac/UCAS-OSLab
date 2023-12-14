@@ -225,7 +225,7 @@ static void init_syscall(void)
 int main(void)
 {
 	if (get_current_cpu_id() == 0) {
-		unmapBoot();
+		// unmapBoot();
 		// Check whether .bss section is set to zero
 		int check = bss_check();
 
