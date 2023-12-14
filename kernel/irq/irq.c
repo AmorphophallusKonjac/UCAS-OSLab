@@ -5,10 +5,12 @@
 #include <os/kernel.h>
 #include <os/smp.h>
 #include <os/page.h>
+#include <os/net.h>
 #include <printk.h>
 #include <assert.h>
 #include <screen.h>
 #include <e1000.h>
+#include <plic.h>
 
 handler_t irq_table[IRQC_COUNT];
 handler_t exc_table[EXCC_COUNT];
@@ -235,6 +237,12 @@ void handle_irq_ext(regs_context_t *regs, uint64_t stval, uint64_t scause)
 {
 	// TODO: [p5-task3] external interrupt handler.
 	// Note: plic_claim and plic_complete will be helpful ...
+	local_flush_dcache();
+	uint32_t id = plic_claim();
+	if (id == PLIC_E1000_PYNQ_IRQ) {
+		net_handle_irq();
+	}
+	plic_complete(id);
 }
 
 void init_exception()
@@ -254,7 +262,7 @@ void init_exception()
 		irq_table[i] = (handler_t)handle_other;
 	}
 	irq_table[IRQC_S_TIMER] = (handler_t)handle_irq_timer;
-	// irq_table[IRQC_U_TIMER] = (handler_t) handle_irq_timer;
+	irq_table[IRQC_S_EXT] = (handler_t)handle_irq_ext;
 	/* TODO: [p2-task3] set up the entrypoint of exceptions */
 	setup_exception();
 }

@@ -40,9 +40,10 @@ static void plic_irq_unmask(int hwirq)
 {
 	int enable = 1;
 	writel(enable, plic_regs + PRIORITY_BASE + hwirq * PRIORITY_PER_ID);
-    struct plic_handler *handler = &plic_handlers;
+	struct plic_handler *handler = &plic_handlers;
 
-    if (handler->present) plic_toggle(handler, hwirq, enable);
+	if (handler->present)
+		plic_toggle(handler, hwirq, enable);
 }
 
 /*
@@ -68,38 +69,36 @@ void plic_complete(int hwirq)
 
 int plic_init(uint64_t plic_regs_addr, uint32_t nr_irqs)
 {
-    plic_regs = (void *)plic_regs_addr;
+	plic_regs = (void *)plic_regs_addr;
 
-    struct plic_handler *handler;
-    int hwirq;
-    uint32_t threshold = 0;
+	struct plic_handler *handler;
+	int hwirq;
+	uint32_t threshold = 0;
 
-    handler = &plic_handlers;
-    if (handler->present) {
-        printk("handler already present.\n");
-        threshold = 0xffffffff;
-        goto done;
-    }
+	handler = &plic_handlers;
+	if (handler->present) {
+		printk("handler already present.\n");
+		threshold = 0xffffffff;
+		goto done;
+	}
 
-    handler->present     = true;
-    handler->hart_base   = plic_regs + CONTEXT_BASE;
-    handler->enable_base = plic_regs + ENABLE_BASE;
+	handler->present = true;
+	handler->hart_base = plic_regs + CONTEXT_BASE;
+	handler->enable_base = plic_regs + ENABLE_BASE;
 
 done:
-    /* priority must be > threshold to trigger an interrupt */
-    writel(threshold, handler->hart_base + CONTEXT_THRESHOLD);
-    for (hwirq = 1; hwirq <= nr_irqs; hwirq++) plic_toggle(handler, hwirq, 0);
+	/* priority must be > threshold to trigger an interrupt */
+	writel(threshold, handler->hart_base + CONTEXT_THRESHOLD);
+	for (hwirq = 1; hwirq <= nr_irqs; hwirq++)
+		plic_toggle(handler, hwirq, 0);
 
-	if (hwirq > PLIC_E1000_QEMU_IRQ)
-	{
+	if (hwirq > PLIC_E1000_QEMU_IRQ) {
 		// Set the priority for PLIC_E1000_IRQ on QEMU
-		plic_irq_unmask(PLIC_E1000_QEMU_IRQ);		
-	}
-	else
-	{
+		plic_irq_unmask(PLIC_E1000_QEMU_IRQ);
+	} else {
 		// Set the priority for PLIC_E1000_IRQ on PYNQ
-		plic_irq_unmask(PLIC_E1000_PYNQ_IRQ);		
+		plic_irq_unmask(PLIC_E1000_PYNQ_IRQ);
 	}
 
-    return 0;
+	return 0;
 }

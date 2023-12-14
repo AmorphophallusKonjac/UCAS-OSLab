@@ -35,21 +35,21 @@
 #define LOCK_NUM 16
 
 typedef enum {
-  UNLOCKED,
-  LOCKED,
+	UNLOCKED,
+	LOCKED,
 } lock_status_t;
 
 typedef struct spin_lock {
-  volatile lock_status_t status;
-  int pid;
+	volatile lock_status_t status;
+	int pid;
 } spin_lock_t;
 
 typedef struct mutex_lock {
-  spin_lock_t lock;
-  spin_lock_t lk; // protect mutex lock
-  list_head block_queue;
-  int key;
-  int pid;
+	spin_lock_t lock;
+	spin_lock_t lk; // protect mutex lock
+	list_head block_queue;
+	int key;
+	int pid;
 } mutex_lock_t;
 
 void init_locks(void);
@@ -70,10 +70,10 @@ void do_destroy_pthread_lock(int pid);
 
 /************************************************************/
 typedef struct barrier {
-  // TODO [P3-TASK2 barrier]
-  int key, cnt, goal, pid;
-  spin_lock_t lock;
-  list_head wait_list;
+	// TODO [P3-TASK2 barrier]
+	int key, cnt, goal, pid;
+	spin_lock_t lock;
+	list_head wait_list;
 } barrier_t;
 
 #define BARRIER_NUM 16
@@ -86,10 +86,10 @@ void do_barrier_wait(int bar_idx);
 void do_barrier_destroy(int bar_idx);
 
 typedef struct condition {
-  // TODO [P3-TASK2 condition]
-  int key, pid;
-  mutex_lock_t mutex;
-  list_head wait_list;
+	// TODO [P3-TASK2 condition]
+	int key, pid;
+	mutex_lock_t mutex;
+	list_head wait_list;
 } condition_t;
 
 #define CONDITION_NUM 16
@@ -104,10 +104,10 @@ void do_condition_broadcast(int cond_idx);
 void do_condition_destroy(int cond_idx);
 
 typedef struct semaphore {
-  // TODO [P3-TASK2 semaphore]
-  int key, value, pid;
-  spin_lock_t lock;
-  list_head wait_list;
+	// TODO [P3-TASK2 semaphore]
+	int key, value, pid;
+	spin_lock_t lock;
+	list_head wait_list;
 } semaphore_t;
 
 #define SEMAPHORE_NUM 16
@@ -123,12 +123,12 @@ void do_semaphore_destroy(int sema_idx);
 #define MAX_MBOX_LENGTH (64)
 
 typedef struct mailbox {
-  // TODO [P3-TASK2 mailbox]
-  list_head reader_wait_list, writer_wait_list;
-  char name[32];
-  char buf[MAX_MBOX_LENGTH];
-  int size, front, tail, user_num;
-  spin_lock_t lock;
+	// TODO [P3-TASK2 mailbox]
+	list_head reader_wait_list, writer_wait_list;
+	char name[32];
+	char buf[MAX_MBOX_LENGTH];
+	int size, front, tail, user_num;
+	spin_lock_t lock;
 } mailbox_t;
 
 #define MBOX_NUM 16

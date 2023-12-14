@@ -83,6 +83,7 @@ static void e1000_configure_tx(void)
 			E1000_TCTL_EN | E1000_TCTL_PSP |
 				lowbit(E1000_TCTL_CT) * 0x10lu |
 				lowbit(E1000_TCTL_COLD) * 0x40lu);
+	e1000_write_reg(e1000, E1000_IMC, E1000_IMC_TXQE);
 	local_flush_dcache();
 }
 
@@ -113,10 +114,12 @@ static void e1000_configure_rx(void)
 	e1000_write_reg(e1000, E1000_RDLEN, sizeof(rx_desc_array));
 	/* TODO: [p5-task2] Set up the HW Rx Head and Tail descriptor pointers */
 	e1000_write_reg(e1000, E1000_RDH, 0);
-	e1000_write_reg(e1000, E1000_RDT, RX_PKT_SIZE - 1);
+	e1000_write_reg(e1000, E1000_RDT, RXDESCS - 1);
 	/* TODO: [p5-task2] Program the Receive Control Register */
 	e1000_write_reg(e1000, E1000_RCTL, E1000_RCTL_EN | E1000_RCTL_BAM);
 	/* TODO: [p5-task3] Enable RXDMT0 Interrupt */
+	e1000_write_reg(e1000, E1000_IMS, E1000_IMS_RXDMT0);
+	local_flush_dcache();
 }
 
 /**
@@ -170,6 +173,8 @@ int e1000_transmit(void *txpacket, int length)
 int e1000_poll(void *rxbuffer)
 {
 	/* TODO: [p5-task2] Receive one packet and put it into rxbuffer */
+	assert(!e1000_recv_queue_empty());
+
 	local_flush_dcache();
 	int tail = e1000_read_reg(e1000, E1000_RDT);
 
@@ -180,11 +185,13 @@ int e1000_poll(void *rxbuffer)
 	}
 
 	int length = rx_desc_array[tail].length;
-
+	printl("tail: %d  length: %d", tail, length);
+	if (length > RX_PKT_SIZE)
+		length = RX_PKT_SIZE;
 	for (int i = 0; i < length; ++i) {
 		((char *)rxbuffer)[i] = rx_pkt_buffer[tail][i];
 	}
-
+	printl("survival\n");
 	rx_desc_array[tail].length = 0;
 	rx_desc_array[tail].csum = 0;
 	rx_desc_array[tail].status = 0;
@@ -195,4 +202,24 @@ int e1000_poll(void *rxbuffer)
 	local_flush_dcache();
 
 	return length;
+}
+
+int e1000_send_queue_full(void)
+{
+	local_flush_dcache();
+
+	int tail = e1000_read_reg(e1000, E1000_TDT);
+	int next_tail = (tail + 1) % TXDESCS;
+
+	return !(tx_desc_array[next_tail].status & E1000_TXD_STAT_DD);
+}
+
+int e1000_recv_queue_empty(void)
+{
+	local_flush_dcache();
+
+	int tail = e1000_read_reg(e1000, E1000_RDT);
+	int next_tail = (tail + 1) % RXDESCS;
+
+	return !(rx_desc_array[next_tail].status & E1000_RXD_STAT_DD);
 }

@@ -41,50 +41,58 @@
 
 // double-linked list
 typedef struct list_node {
-  struct list_node *next, *prev;
+	struct list_node *next, *prev;
 } list_node_t;
 
 typedef list_node_t list_head;
 
 // LIST_HEAD is used to define the head of a list.
-#define LIST_HEAD(name) struct list_node name = {&(name), &(name)}
+#define LIST_HEAD(name) struct list_node name = { &(name), &(name) }
 
 /* TODO: [p2-task1] implement your own list API */
-static inline int list_empty(list_head *queue) { return queue->next == queue; }
-
-static inline void list_push(list_head *queue, list_node_t *node) {
-  node->next = queue;
-  node->prev = queue->prev;
-  queue->prev = node;
-  node->prev->next = node;
+static inline int list_empty(list_head *queue)
+{
+	return queue->next == queue;
 }
 
-static inline list_node_t *list_front(list_head *queue) {
-  if (list_empty(queue))
-    return 0;
-  list_node_t *ret = queue->next;
-  return ret;
+static inline void list_push(list_head *queue, list_node_t *node)
+{
+	node->next = queue;
+	node->prev = queue->prev;
+	queue->prev = node;
+	node->prev->next = node;
 }
 
-static inline void list_pop(list_head *queue) {
-  if (list_empty(queue))
-    return;
-  list_node_t *ret = queue->next;
-  queue->next = queue->next->next;
-  queue->next->prev = queue;
-  ret->prev = ret;
-  ret->next = ret;
+static inline list_node_t *list_front(list_head *queue)
+{
+	if (list_empty(queue))
+		return 0;
+	list_node_t *ret = queue->next;
+	return ret;
 }
 
-static inline void list_del(list_node_t *node) {
-  node->next->prev = node->prev;
-  node->prev->next = node->next;
-  node->next = node;
-  node->prev = node;
+static inline void list_pop(list_head *queue)
+{
+	if (list_empty(queue))
+		return;
+	list_node_t *ret = queue->next;
+	queue->next = queue->next->next;
+	queue->next->prev = queue;
+	ret->prev = ret;
+	ret->next = ret;
 }
 
-static inline void list_destroy(list_head *queue) {
-  queue->next = queue;
-  queue->prev = queue;
+static inline void list_del(list_node_t *node)
+{
+	node->next->prev = node->prev;
+	node->prev->next = node->next;
+	node->next = node;
+	node->prev = node;
+}
+
+static inline void list_destroy(list_head *queue)
+{
+	queue->next = queue;
+	queue->prev = queue;
 }
 #endif
