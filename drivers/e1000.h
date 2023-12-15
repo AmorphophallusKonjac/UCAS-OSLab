@@ -33,6 +33,7 @@
 
 #include <type.h>
 #include <io.h>
+#include <os/lock.h>
 
 /* NIC specific static variables go here */
 #define TXDESCS 64 // Number of tx descriptors
@@ -438,7 +439,10 @@ extern volatile uint8_t *e1000;
 void e1000_init(void);
 int e1000_transmit(void *txpacket, int length);
 int e1000_poll(void *rxbuffer);
-int e1000_send_queue_full(void);
-int e1000_recv_queue_empty(void);
+
+extern list_node_t send_block_queue;
+extern list_node_t recv_block_queue;
+extern spin_lock_t send_block_queue_lock;
+extern spin_lock_t recv_block_queue_lock;
 
 #endif // !_E1000_HW_H_

@@ -93,6 +93,7 @@ void store_page_fault_handler(regs_context_t *regs, uint64_t stval,
 {
 	pcb_t *current_running = get_current_running();
 	int pid = current_running->pid;
+	printl("process %d store fault, stval = %lx\n", pid, stval);
 	PTE *firstPgdir = current_running->pagedir;
 	uint64_t va = stval;
 	va &= VA_MASK;

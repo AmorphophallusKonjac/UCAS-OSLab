@@ -53,7 +53,7 @@
 
 extern void ret_from_exception();
 extern void clear_SIP();
-extern void set_sstatus();
+extern void set_sstatus_SUM();
 #define VERSION_BUF 50
 #define OS_SIZE_LOC 0xffffffc0502001fclu
 #define STACK_PAGE_NUM 1
@@ -224,6 +224,7 @@ static void init_syscall(void)
 
 int main(void)
 {
+	set_sstatus_SUM();
 	if (get_current_cpu_id() == 0) {
 		// unmapBoot();
 		// Check whether .bss section is set to zero
@@ -304,13 +305,6 @@ int main(void)
 		plic_init(plic_addr, nr_irqs);
 		printk("> [INIT] PLIC initialized successfully. addr = 0x%lx, nr_irqs=0x%x\n",
 		       plic_addr, nr_irqs);
-
-		// set_satp(SATP_MODE_SV39, pcb[0].pid,
-		// 	 (kva2pa((uintptr_t)pcb[0].pagedir)) >>
-		// 		 NORMAL_PAGE_SHIFT);
-		// local_flush_tlb_all();
-		// local_flush_icache_all();
-		// set_sstatus();
 
 		// Init network device
 		e1000_init();

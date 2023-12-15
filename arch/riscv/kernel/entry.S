@@ -228,3 +228,9 @@ ENTRY(forkret)
   call release_lock
   j ret_from_exception 
 ENDPROC(forkret)
+
+ENTRY(set_sstatus_SUM)
+  li t0, SR_SUM
+  csrs CSR_SSTATUS, t0
+  jr ra
+ENDPROC(set_sstatus_SUM)

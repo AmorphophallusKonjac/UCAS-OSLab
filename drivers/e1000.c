@@ -2,9 +2,16 @@
 #include <type.h>
 #include <os/string.h>
 #include <os/time.h>
+#include <os/sched.h>
+#include <os/smp.h>
 #include <assert.h>
 #include <pgtable.h>
 #include <printk.h>
+
+LIST_HEAD(send_block_queue);
+LIST_HEAD(recv_block_queue);
+spin_lock_t send_block_queue_lock;
+spin_lock_t recv_block_queue_lock;
 
 // E1000 Registers Base Pointer
 volatile uint8_t *e1000; // use virtual memory address
@@ -154,21 +161,31 @@ void e1000_init(void)
 int e1000_transmit(void *txpacket, int length)
 {
 	/* TODO: [p5-task1] Transmit one packet from txpacket */
+	pcb_t *current_running = get_current_running();
+
 	local_flush_dcache();
 	int tail = e1000_read_reg(e1000, E1000_TDT);
 
-	while ((tx_desc_array[tail].status & E1000_TXD_STAT_DD) == 0) {
-		local_flush_dcache();
-	}
-
-	for (int i = 0; i < length; ++i) {
-		tx_pkt_buffer[tail][i] = ((char *)txpacket)[i];
-	}
+	memcpy((void *)tx_pkt_buffer[tail], txpacket, length);
 	tx_desc_array[tail].length = length;
-	tx_desc_array[tail].cmd |= E1000_TXD_CMD_EOP;
-	tx_desc_array[tail].status &= ~E1000_TXD_STAT_DD;
+	tx_desc_array[tail].status = 0;
 
-	e1000_write_reg(e1000, E1000_TDT, (tail + 1) % TXDESCS);
+	local_flush_dcache();
+
+	tail = (tail + 1) % TXDESCS;
+
+	while ((tx_desc_array[tail].status & E1000_TXD_STAT_DD) == 0) {
+		e1000_write_reg(e1000, E1000_IMS, E1000_IMS_TXQE);
+		local_flush_dcache();
+		spin_lock_acquire(&current_running->lock);
+		current_running->status = TASK_BLOCKED;
+		spin_lock_acquire(&send_block_queue_lock);
+		do_block(&current_running->list, &send_block_queue);
+		spin_lock_release(&send_block_queue_lock);
+		do_scheduler();
+	}
+
+	e1000_write_reg(e1000, E1000_TDT, tail);
 	local_flush_dcache();
 
 	return length;
@@ -182,53 +199,39 @@ int e1000_transmit(void *txpacket, int length)
 int e1000_poll(void *rxbuffer)
 {
 	/* TODO: [p5-task2] Receive one packet and put it into rxbuffer */
-	assert(!e1000_recv_queue_empty());
+	pcb_t *current_running = get_current_running();
 
 	local_flush_dcache();
+	int head = e1000_read_reg(e1000, E1000_RDH);
 	int tail = e1000_read_reg(e1000, E1000_RDT);
 
 	tail = (tail + 1) % RXDESCS;
 
 	while ((rx_desc_array[tail].status & E1000_RXD_STAT_DD) == 0) {
+		spin_lock_acquire(&current_running->lock);
+		current_running->status = TASK_BLOCKED;
+		spin_lock_acquire(&recv_block_queue_lock);
+		do_block(&current_running->list, &recv_block_queue);
+		spin_lock_release(&recv_block_queue_lock);
+		do_scheduler();
 		local_flush_dcache();
 	}
 
 	int length = rx_desc_array[tail].length;
-	printl("tail: %d  length: %d", tail, length);
-	if (length > RX_PKT_SIZE)
-		length = RX_PKT_SIZE;
-	for (int i = 0; i < length; ++i) {
-		((char *)rxbuffer)[i] = rx_pkt_buffer[tail][i];
-	}
-	printl("survival\n");
+	printl("begin  head: %d tail: %d  length: %d\n", head, tail, length);
+	printl("write addr %lx\n", rxbuffer);
+	memcpy(rxbuffer, (void *)rx_pkt_buffer[tail], length);
+	printl("finish head: %d tail: %d  length: %d\n", head, tail, length);
 	rx_desc_array[tail].length = 0;
 	rx_desc_array[tail].csum = 0;
 	rx_desc_array[tail].status = 0;
 	rx_desc_array[tail].errors = 0;
 	rx_desc_array[tail].special = 0;
 
+	local_flush_dcache();
+
 	e1000_write_reg(e1000, E1000_RDT, tail);
 	local_flush_dcache();
 
 	return length;
-}
-
-int e1000_send_queue_full(void)
-{
-	local_flush_dcache();
-
-	int tail = e1000_read_reg(e1000, E1000_TDT);
-	int next_tail = (tail + 1) % TXDESCS;
-
-	return !(tx_desc_array[next_tail].status & E1000_TXD_STAT_DD);
-}
-
-int e1000_recv_queue_empty(void)
-{
-	local_flush_dcache();
-
-	int tail = e1000_read_reg(e1000, E1000_RDT);
-	int next_tail = (tail + 1) % RXDESCS;
-
-	return !(rx_desc_array[next_tail].status & E1000_RXD_STAT_DD);
 }

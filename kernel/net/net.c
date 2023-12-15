@@ -6,28 +6,11 @@
 #include <os/list.h>
 #include <os/smp.h>
 
-static LIST_HEAD(send_block_queue);
-static LIST_HEAD(recv_block_queue);
-spin_lock_t send_block_queue_lock;
-spin_lock_t recv_block_queue_lock;
-
 int do_net_send(void *txpacket, int length)
 {
 	// TODO: [p5-task1] Transmit one network packet via e1000 device
 	// TODO: [p5-task3] Call do_block when e1000 transmit queue is full
 	// TODO: [p5-task3] Enable TXQE interrupt if transmit queue is full
-	pcb_t *current_running = get_current_running();
-	if (e1000_send_queue_full()) {
-		e1000_write_reg(e1000, E1000_IMS, E1000_IMS_TXQE);
-		local_flush_dcache();
-
-		spin_lock_acquire(&current_running->lock);
-		current_running->status = TASK_BLOCKED;
-		spin_lock_acquire(&send_block_queue_lock);
-		do_block(&current_running->list, &send_block_queue);
-		spin_lock_release(&send_block_queue_lock);
-		do_scheduler();
-	}
 
 	return e1000_transmit(txpacket, length); // Bytes it has transmitted
 }
@@ -37,25 +20,14 @@ int do_net_recv(void *rxbuffer, int pkt_num, int *pkt_lens)
 	// TODO: [p5-task2] Receive one network packet via e1000 device
 	// TODO: [p5-task3] Call do_block when there is no packet on the way
 
-	pcb_t *current_running = get_current_running();
-
-	int recv_len = 0;
+	int offset = 0;
 
 	for (int i = 0; i < pkt_num; ++i) {
-		if (e1000_recv_queue_empty()) {
-			spin_lock_acquire(&current_running->lock);
-			current_running->status = TASK_BLOCKED;
-			spin_lock_acquire(&recv_block_queue_lock);
-			do_block(&current_running->list, &recv_block_queue);
-			spin_lock_release(&recv_block_queue_lock);
-			do_scheduler();
-		}
-		pkt_lens[i] = e1000_poll(rxbuffer);
-		rxbuffer += pkt_lens[i];
-		recv_len += pkt_lens[i];
+		pkt_lens[i] = e1000_poll(rxbuffer + offset);
+		offset += pkt_lens[i];
 	}
 
-	return recv_len; // Bytes it has received
+	return offset; // Bytes it has received
 }
 
 void e1000_handle_txqe()
@@ -113,11 +85,12 @@ void net_handle_irq(void)
 {
 	// TODO: [p5-task3] Handle interrupts from network device
 	local_flush_dcache();
-	uint64_t scause = e1000_read_reg(e1000, E1000_ICR);
-	if (E1000_ICR_TXQE & scause) {
+	uint64_t ICR = e1000_read_reg(e1000, E1000_ICR);
+	uint64_t IMS = e1000_read_reg(e1000, E1000_IMS);
+	if ((E1000_ICR_TXQE & ICR) && (E1000_IMS_TXQE & IMS)) {
 		e1000_handle_txqe();
 	}
-	if (E1000_ICR_RXDMT0 & scause) {
+	if ((E1000_ICR_RXDMT0 & ICR) && (E1000_IMS_RXDMT0 & IMS)) {
 		e1000_handle_rxdmt0();
 	}
 }
