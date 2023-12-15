@@ -4,7 +4,7 @@
 #include <pgtable.h>
 #include <type.h>
 
-// #define IOREMAP_HUGE_PAGE
+#define IOREMAP_HUGE_PAGE
 #define IOREMAP_BIG_PAGE
 
 // maybe you can map it to IO_ADDR_START ?

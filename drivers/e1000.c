@@ -65,8 +65,11 @@ static void e1000_configure_tx(void)
 	for (int i = 0; i < TXDESCS; ++i) {
 		tx_desc_array[i].addr = kva2pa((uintptr_t)&tx_pkt_buffer[i]);
 		tx_desc_array[i].length = TX_PKT_SIZE;
+		tx_desc_array[i].cso = 0;
 		tx_desc_array[i].cmd = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;
 		tx_desc_array[i].status = E1000_TXD_STAT_DD;
+		tx_desc_array[i].css = 0;
+		tx_desc_array[i].special = 0;
 	}
 	uint64_t pa_tx_desc_array = kva2pa((uintptr_t)tx_desc_array);
 	/* TODO: [p5-task1] Set up the Tx descriptor base address and length */
@@ -104,6 +107,11 @@ static void e1000_configure_rx(void)
 	/* TODO: [p5-task2] Initialize rx descriptors */
 	for (int i = 0; i < RXDESCS; ++i) {
 		rx_desc_array[i].addr = kva2pa((uintptr_t)&rx_pkt_buffer[i]);
+		rx_desc_array[i].length = 0;
+		rx_desc_array[i].csum = 0;
+		rx_desc_array[i].status = 0;
+		rx_desc_array[i].errors = 0;
+		rx_desc_array[i].special = 0;
 	}
 	/* TODO: [p5-task2] Set up the Rx descriptor base address and length */
 	uint64_t pa_rx_desc_array = kva2pa((uintptr_t)rx_desc_array);
@@ -162,6 +170,7 @@ int e1000_transmit(void *txpacket, int length)
 
 	e1000_write_reg(e1000, E1000_TDT, (tail + 1) % TXDESCS);
 	local_flush_dcache();
+
 	return length;
 }
 
