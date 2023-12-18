@@ -33,7 +33,7 @@
 #ifdef TEST_SWAP
 #define PAGE_NUMS 50
 #else
-#define PAGE_NUMS 1000
+#define PAGE_NUMS 10000
 #endif
 
 #define SHARE_PAGE_NUMS 16

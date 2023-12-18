@@ -4,6 +4,7 @@
 #include <os/time.h>
 #include <os/sched.h>
 #include <os/smp.h>
+#include <os/net.h>
 #include <assert.h>
 #include <pgtable.h>
 #include <printk.h>
@@ -222,6 +223,48 @@ int e1000_poll(void *rxbuffer)
 	printl("write addr %lx\n", rxbuffer);
 	memcpy(rxbuffer, (void *)rx_pkt_buffer[tail], length);
 	printl("finish head: %d tail: %d  length: %d\n", head, tail, length);
+	rx_desc_array[tail].length = 0;
+	rx_desc_array[tail].csum = 0;
+	rx_desc_array[tail].status = 0;
+	rx_desc_array[tail].errors = 0;
+	rx_desc_array[tail].special = 0;
+
+	local_flush_dcache();
+
+	e1000_write_reg(e1000, E1000_RDT, tail);
+	local_flush_dcache();
+
+	return length;
+}
+
+int e1000_poll_stream(void *rxbuffer)
+{
+	/* TODO: [p5-task2] Receive one packet and put it into rxbuffer */
+
+	local_flush_dcache();
+	int head = e1000_read_reg(e1000, E1000_RDH);
+	int tail = e1000_read_reg(e1000, E1000_RDT);
+
+	tail = (tail + 1) % RXDESCS;
+
+	while ((rx_desc_array[tail].status & E1000_RXD_STAT_DD) == 0) {
+		do_sleep(1);
+		if (get_timer() >= RSD_resend_time) {
+			do_RSD();
+			RSD_resend_time = get_timer() + RESEND_INTERVAL;
+		}
+		if (get_timer() >= ACK_resend_time) {
+			do_ACK();
+			ACK_resend_time = get_timer() + RESEND_INTERVAL;
+		}
+		local_flush_dcache();
+	}
+
+	int length = rx_desc_array[tail].length;
+	// printl("begin  head: %d tail: %d  length: %d\n", head, tail, length);
+	// printl("write addr %lx\n", rxbuffer);
+	memcpy(rxbuffer, (void *)rx_pkt_buffer[tail], length);
+	// printl("finish head: %d tail: %d  length: %d\n", head, tail, length);
 	rx_desc_array[tail].length = 0;
 	rx_desc_array[tail].csum = 0;
 	rx_desc_array[tail].status = 0;

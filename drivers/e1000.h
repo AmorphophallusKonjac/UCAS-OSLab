@@ -439,6 +439,12 @@ extern volatile uint8_t *e1000;
 void e1000_init(void);
 int e1000_transmit(void *txpacket, int length);
 int e1000_poll(void *rxbuffer);
+int e1000_poll_stream(void *rxbuffer);
+
+#define RESEND_INTERVAL 5
+
+int RSD_resend_time;
+int ACK_resend_time;
 
 extern list_node_t send_block_queue;
 extern list_node_t recv_block_queue;

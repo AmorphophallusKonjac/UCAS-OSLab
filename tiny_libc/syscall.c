@@ -160,6 +160,12 @@ int sys_fork()
 			      IGNORE);
 }
 
+int sys_net_recv_stream(void *rxbuffer, int len)
+{
+	return invoke_syscall(SYSCALL_NET_RECV_STREAM, (long)rxbuffer, len,
+			      IGNORE, IGNORE, IGNORE);
+}
+
 /************************************************************/
 #ifdef S_CORE
 pid_t sys_exec(int id, int argc, uint64_t arg0, uint64_t arg1, uint64_t arg2)
