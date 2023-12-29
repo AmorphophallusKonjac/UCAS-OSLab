@@ -222,6 +222,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_FORK] = (long (*)())do_fork;
 	syscall[SYSCALL_NET_RECV_STREAM] = (long (*)())do_net_recv_stream;
 	syscall[SYSCALL_MKFS] = (long (*)())do_mkfs;
+	syscall[SYSCALL_LS] = (long (*)())do_ls;
+	syscall[SYSCALL_MKDIR] = (long (*)())do_mkdir;
 }
 /************************************************************/
 
@@ -321,9 +323,9 @@ int main(void)
 		init_screen();
 		printk("> [INIT] SCREEN initialization succeeded.\n");
 
-		do_mkfs();
-
 		printk("> [INIT] CPU0 starting.\n");
+
+		do_mkfs();
 
 		smp_init();
 		wakeup_other_hart();

@@ -366,3 +366,13 @@ void sys_mkfs()
 {
 	invoke_syscall(SYSCALL_MKFS, IGNORE, IGNORE, IGNORE, IGNORE, IGNORE);
 }
+
+void sys_ls(int inum, char *path, int detailed)
+{
+	invoke_syscall(SYSCALL_LS, inum, (long)path, detailed, IGNORE, IGNORE);
+}
+
+void sys_mkdir(int inum, char *path)
+{
+	invoke_syscall(SYSCALL_MKDIR, inum, (long)path, IGNORE, IGNORE, IGNORE);
+}

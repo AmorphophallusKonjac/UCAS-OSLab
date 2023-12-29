@@ -43,6 +43,9 @@ struct pair {
 	long (*parser)();
 } command[SYSCALL_NUM];
 
+uint32_t inum = 1;
+char path[BUF_SIZE] = "/";
+
 /*****************************************************************************************/
 
 void execParser(int argc, char **argv)
@@ -174,6 +177,34 @@ void mkfsParser(int argc, char **argv)
 	sys_mkfs();
 }
 
+void lsParser(int argc, char **argv)
+{
+	int detailed = 0;
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp("-l", argv[i]) == 0) {
+			detailed = 1;
+			break;
+		}
+	}
+	char name[256] = "";
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp("-l", argv[i]) != 0) {
+			strcpy(name, argv[i]);
+			break;
+		}
+	}
+	sys_ls(inum, name, detailed);
+}
+
+void mkdirParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss directory name\n");
+		return;
+	}
+	sys_mkdir(inum, argv[1]);
+}
+
 void parseArg(char *arg, int *argc, char **argv)
 {
 	*argc = 0;
@@ -233,6 +264,12 @@ void initSyscall()
 
 	strcpy(command[5].name, "mkfs");
 	command[5].parser = (long (*)())mkfsParser;
+
+	strcpy(command[6].name, "ls");
+	command[6].parser = (long (*)())lsParser;
+
+	strcpy(command[7].name, "mkdir");
+	command[7].parser = (long (*)())mkdirParser;
 }
 
 int main(void)
@@ -243,7 +280,7 @@ int main(void)
 	int len = 0;
 	sys_move_cursor(0, SHELL_BEGIN);
 	printf("------------------- COMMAND -------------------\n");
-	printf("> root@UCAS_OS# ");
+	printf("> root@UCAS_OS:%s# ", path);
 
 	while (1) {
 		// TODO [P3-task1]: call syscall to read UART port
@@ -255,7 +292,7 @@ int main(void)
 			clientEntrypoint(buf);
 			len = 0;
 			buf[len] = '\0';
-			printf("> root@UCAS_OS# ");
+			printf("> root@UCAS_OS:%s# ", path);
 		} else {
 			if (ch == 8 || ch == 127) {
 				if (len) {
@@ -264,7 +301,8 @@ int main(void)
 				}
 			} else {
 				if (len == BUF_SIZE) {
-					printf("\nError: command too long!\n> root@UCAS_OS# ");
+					printf("\nError: command too long!\n> root@UCAS_OS:%s# ",
+					       path);
 					len = 0;
 					buf[len] = '\0';
 					continue;

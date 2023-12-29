@@ -15,7 +15,7 @@ void print_superblock(fs_t *fs)
 	printk("[FS] inode offset : 0x%lX\n", fs->inode_offset);
 	printk("[FS] data offset : 0x%lX\n", fs->data_offset);
 	printk("[FS] inode size : 0x%lXB, dir entry size : 0x%lXB\n",
-	       sizeof(inode_t));
+	       sizeof(inode_t), sizeof(dentry_t));
 }
 
 void init_map(uint32_t offset, uint32_t size)
@@ -163,7 +163,7 @@ void write_disk(uint32_t offset, char *data, int len)
 uint32_t alloc_inode()
 {
 	inode_t inode;
-	inode.mode = 0;
+	inode.mode = FILE;
 	inode.link_num = 1;
 	inode.size = 0;
 	inode.inum = ++inum;
@@ -363,12 +363,30 @@ uint32_t get_inode_offset(uint32_t inum)
 	return 0;
 }
 
+void do_mkdir(uint32_t inum, char *path)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_file_inum;
+	parse_path(inum, path, &fa_file_inum, &file_inum, DIR, &name);
+	if (file_inum != 0) {
+		printk("mkdir: %s File exists\n", path_bak);
+		return;
+	}
+	if (fa_file_inum == 0) {
+		printk("mkdir: Can not find %s\n", path_bak);
+		return;
+	}
+	internel_mkdir(fa_file_inum, name);
+}
+
 uint32_t internel_mkdir(uint32_t fa_inum, char *name)
 {
 	uint32_t inode_offset = alloc_inode();
 	inode_t inode;
 	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
-	inode.mode = 1;
+	inode.mode = DIR;
 	inode.link_num = 2;
 	inode.size = 0;
 	uint32_t inum = inode.inum;
@@ -380,4 +398,106 @@ uint32_t internel_mkdir(uint32_t fa_inum, char *name)
 	} else {
 		add_dentry(inode_offset, inum, "..");
 	}
+	return 0;
+}
+
+uint32_t find_file(uint32_t inum, char *name, uint16_t mode)
+{
+	uint32_t ret = 0;
+	if (inum == 0)
+		return ret;
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	uint32_t block_offset = 0;
+	for (uint32_t ptr = 0; ptr < inode.size; ptr += sizeof(dentry_t)) {
+		dentry_t dentry;
+		if (ptr % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset, ptr);
+		}
+		read_disk(block_offset + (ptr % DISK_BLOCK_SIZE),
+			  (char *)&dentry, sizeof(dentry));
+		if (strcmp(name, dentry.name) == 0) {
+			inode_t file_inode;
+			read_disk(get_inode_offset(dentry.inum),
+				  (char *)&file_inode, sizeof(inode_t));
+			if (file_inode.mode == mode) {
+				ret = dentry.inum;
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+void parse_path(uint32_t dir_inum, char *path, uint32_t *fa_inum,
+		uint32_t *inum, uint16_t mode, char **file_name)
+{
+	*fa_inum = 0;
+	*inum = dir_inum;
+	if (path[0] == '/') {
+		*inum = 1;
+	}
+	if (path[0] == '\0') {
+		*inum = 0;
+	}
+	char *name = strtok(path, "/");
+	*file_name = name;
+	if (name == NULL) {
+		return;
+	}
+	*fa_inum = *inum;
+	*inum = find_file(*fa_inum, name, DIR);
+	while ((name = strtok(NULL, "/")) != NULL) {
+		*file_name = name;
+		*fa_inum = *inum;
+		*inum = find_file(*fa_inum, name, DIR);
+	}
+	*inum = find_file(*fa_inum, *file_name, mode);
+}
+
+void do_ls(uint32_t inum, char *path, int detailed)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_file_inum;
+	parse_path(inum, path, &fa_file_inum, &file_inum, DIR, &name);
+	if (file_inum == 0 && path[0] != '\0') {
+		printk("ls: Can not find %s\n", path_bak);
+		return;
+	}
+	if (file_inum == 0)
+		file_inum = inum;
+	internel_ls(file_inum, detailed);
+}
+
+uint32_t internel_ls(uint32_t inum, int detailed)
+{
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	uint32_t block_offset = 0;
+	for (uint32_t ptr = 0; ptr < inode.size; ptr += sizeof(dentry_t)) {
+		dentry_t dentry;
+		if (ptr % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset, ptr);
+		}
+		read_disk(block_offset + (ptr % DISK_BLOCK_SIZE),
+			  (char *)&dentry, sizeof(dentry));
+		if (detailed) {
+			inode_t ls_inode;
+			read_disk(get_inode_offset(dentry.inum),
+				  (char *)&ls_inode, sizeof(inode_t));
+			printk("%s   inum : %d   ln_num : %d   size : 0x%X\n",
+			       dentry.name, dentry.inum, ls_inode.link_num,
+			       ls_inode.size);
+		} else {
+			printk("   %s", dentry.name);
+			if ((ptr / sizeof(dentry_t) % 5 == 4) ||
+			    (ptr + sizeof(dentry_t) >= inode.size))
+				printk("\n");
+		}
+	}
+	return 0;
 }

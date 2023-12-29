@@ -25,6 +25,12 @@
 
 #define DENTRY_NAME_SIZE 124
 
+#define BUF_SIZE 512
+
+#define FILE 0
+
+#define DIR 1
+
 #define FS_SIZE (1ul << 29)
 
 char *disk_cache_data;
@@ -84,5 +90,11 @@ void parse_inode_ptr(axis_t *pos, uint64_t ptr);
 uint32_t get_block(inode_t *inode, uint32_t inode_size, uint32_t ptr);
 uint32_t alloc_block();
 uint32_t get_inode_offset(uint32_t inum);
+void do_ls(uint32_t inum, char *path, int detailed);
+uint32_t internel_ls(uint32_t inum, int detailed);
+void do_mkdir(uint32_t inum, char *path);
+void parse_path(uint32_t dir_inum, char *path, uint32_t *fa_inum,
+		uint32_t *inum, uint16_t mode, char **file_name);
+uint32_t find_file(uint32_t inum, char *name, uint16_t mode);
 
 #endif

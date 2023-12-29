@@ -58,5 +58,7 @@
 #define SYSCALL_NET_RECV_STREAM 89
 
 #define SYSCALL_MKFS 90
+#define SYSCALL_LS 91
+#define SYSCALL_MKDIR 92
 
 #endif
