@@ -169,6 +169,11 @@ void psParser(int argc, char **argv)
 	sys_ps();
 }
 
+void mkfsParser(int argc, char **argv)
+{
+	sys_mkfs();
+}
+
 void parseArg(char *arg, int *argc, char **argv)
 {
 	*argc = 0;
@@ -225,6 +230,9 @@ void initSyscall()
 
 	strcpy(command[4].name, "taskset");
 	command[4].parser = (long (*)())tasksetParser;
+
+	strcpy(command[5].name, "mkfs");
+	command[5].parser = (long (*)())mkfsParser;
 }
 
 int main(void)

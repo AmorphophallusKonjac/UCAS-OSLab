@@ -57,4 +57,6 @@
 #define SYSCALL_FORK 88
 #define SYSCALL_NET_RECV_STREAM 89
 
+#define SYSCALL_MKFS 90
+
 #endif

@@ -361,3 +361,8 @@ int sys_net_recv(void *rxbuffer, int pkt_num, int *pkt_lens)
 			      (long)pkt_lens, IGNORE, IGNORE);
 }
 /************************************************************/
+
+void sys_mkfs()
+{
+	invoke_syscall(SYSCALL_MKFS, IGNORE, IGNORE, IGNORE, IGNORE, IGNORE);
+}
