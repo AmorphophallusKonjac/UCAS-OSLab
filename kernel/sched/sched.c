@@ -274,6 +274,8 @@ pid_t do_exec(char *name, int argc, char *argv[])
 	pcb[pcbidx].tid = 0;
 	pcb[pcbidx].wakeup_time = 0;
 	pcb[pcbidx].cpuMask = current_running->cpuMask;
+	pcb[pcbidx].wd_inum = current_running->wd_inum;
+	strcpy(pcb[pcbidx].wd, current_running->wd);
 	spin_lock_acquire(&ready_queue_lock);
 	list_push(&ready_queue, &pcb[pcbidx].list);
 	spin_lock_release(&ready_queue_lock);

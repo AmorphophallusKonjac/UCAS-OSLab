@@ -26,8 +26,12 @@ int sys_taskset(pid_t pid, int mask);
 int sys_fork(void);
 int sys_net_recv_stream(void *rxbuffer, int len);
 void sys_mkfs(void);
-void sys_ls(int inum, char *path, int detailed);
-void sys_mkdir(int inum, char *path);
+void sys_ls(char *path, int detailed);
+void sys_mkdir(char *path);
+void sys_statfs();
+void sys_cd(char *path);
+void sys_rwd(char *wd);
+void sys_rmdir(char *path);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */

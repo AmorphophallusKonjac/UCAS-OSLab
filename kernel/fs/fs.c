@@ -1,6 +1,8 @@
 #include <os/fs.h>
 #include <os/string.h>
+#include <os/sched.h>
 #include <os/kernel.h>
+#include <os/smp.h>
 #include <printk.h>
 #include <screen.h>
 
@@ -27,7 +29,7 @@ void init_map(uint32_t offset, uint32_t size)
 
 void init_inode()
 {
-	init_map(fs.inode_offset, fs.inode_size);
+	// init_map(fs.inode_offset, fs.inode_size);
 	internel_mkdir(0, "");
 }
 
@@ -179,9 +181,7 @@ uint32_t alloc_inode()
 					char data = inode_map_buf[j] | (1 << k);
 					write_disk(fs.inode_map_offset + i + j,
 						   &data, 1);
-					uint32_t inode_idx =
-						(i * DISK_BLOCK_SIZE + j) * 8 +
-						k;
+					uint32_t inode_idx = (i + j) * 8 + k;
 					ret = fs.inode_offset +
 					      inode_idx * sizeof(inode_t);
 					write_disk(ret, (char *)&inode,
@@ -262,9 +262,7 @@ uint32_t alloc_block()
 					char data = block_map_buf[j] | (1 << k);
 					write_disk(fs.block_map_offset + i + j,
 						   &data, 1);
-					uint32_t block_idx =
-						(i * DISK_BLOCK_SIZE + j) * 8 +
-						k;
+					uint32_t block_idx = (i + j) * 8 + k;
 					ret = fs.data_offset +
 					      block_idx * DISK_BLOCK_SIZE;
 					write_disk(ret, 0, DISK_BLOCK_SIZE);
@@ -363,22 +361,23 @@ uint32_t get_inode_offset(uint32_t inum)
 	return 0;
 }
 
-void do_mkdir(uint32_t inum, char *path)
+void do_mkdir(char *path)
 {
 	char *name = NULL;
 	char path_bak[BUF_SIZE];
 	strcpy(path_bak, path);
-	uint32_t file_inum, fa_file_inum;
-	parse_path(inum, path, &fa_file_inum, &file_inum, DIR, &name);
-	if (file_inum != 0) {
+	uint32_t dir_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	if (dir_inum != 0) {
 		printk("mkdir: %s File exists\n", path_bak);
 		return;
 	}
-	if (fa_file_inum == 0) {
+	if (fa_dir_inum == 0) {
 		printk("mkdir: Can not find %s\n", path_bak);
 		return;
 	}
-	internel_mkdir(fa_file_inum, name);
+	internel_mkdir(fa_dir_inum, name);
 }
 
 uint32_t internel_mkdir(uint32_t fa_inum, char *name)
@@ -430,17 +429,11 @@ uint32_t find_file(uint32_t inum, char *name, uint16_t mode)
 	return ret;
 }
 
-void parse_path(uint32_t dir_inum, char *path, uint32_t *fa_inum,
-		uint32_t *inum, uint16_t mode, char **file_name)
+void parse_path(char *path, uint32_t *fa_inum, uint32_t *inum, uint16_t mode,
+		char **file_name)
 {
-	*fa_inum = 0;
-	*inum = dir_inum;
-	if (path[0] == '/') {
-		*inum = 1;
-	}
-	if (path[0] == '\0') {
-		*inum = 0;
-	}
+	*fa_inum = 1;
+	*inum = 1;
 	char *name = strtok(path, "/");
 	*file_name = name;
 	if (name == NULL) {
@@ -456,26 +449,25 @@ void parse_path(uint32_t dir_inum, char *path, uint32_t *fa_inum,
 	*inum = find_file(*fa_inum, *file_name, mode);
 }
 
-void do_ls(uint32_t inum, char *path, int detailed)
+void do_ls(char *path, int detailed)
 {
-	char *name = NULL;
 	char path_bak[BUF_SIZE];
 	strcpy(path_bak, path);
-	uint32_t file_inum, fa_file_inum;
-	parse_path(inum, path, &fa_file_inum, &file_inum, DIR, &name);
-	if (file_inum == 0 && path[0] != '\0') {
+	normalize_path(path);
+	char *name = NULL;
+	uint32_t dir_inum, fa_dir_inum;
+	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	if (dir_inum == 0) {
 		printk("ls: Can not find %s\n", path_bak);
 		return;
 	}
-	if (file_inum == 0)
-		file_inum = inum;
-	internel_ls(file_inum, detailed);
+	internel_ls(dir_inum, detailed);
 }
 
-uint32_t internel_ls(uint32_t inum, int detailed)
+uint32_t internel_ls(uint32_t dir_inum, int detailed)
 {
 	inode_t inode;
-	uint32_t inode_offset = get_inode_offset(inum);
+	uint32_t inode_offset = get_inode_offset(dir_inum);
 	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
 	uint32_t block_offset = 0;
 	for (uint32_t ptr = 0; ptr < inode.size; ptr += sizeof(dentry_t)) {
@@ -500,4 +492,262 @@ uint32_t internel_ls(uint32_t inum, int detailed)
 		}
 	}
 	return 0;
+}
+
+void do_statfs()
+{
+	print_superblock(&fs);
+	uint32_t used_inode = 0;
+	uint32_t used_block = 0;
+	for (int i = 0; i < fs.inode_map_size; i += DISK_BLOCK_SIZE) {
+		char *inode_map_buf = read_disk_block(fs.inode_map_offset + i);
+		for (int j = 0; j < DISK_BLOCK_SIZE; ++j) {
+			for (int k = 0; k < 8; ++k) {
+				if ((inode_map_buf[j] & (1 << k)) != 0) {
+					++used_inode;
+				}
+			}
+		}
+	}
+	for (int i = 0; i < fs.block_map_size; i += DISK_BLOCK_SIZE) {
+		char *block_map_buf = read_disk_block(fs.block_map_offset + i);
+		for (int j = 0; j < DISK_BLOCK_SIZE; ++j) {
+			for (int k = 0; k < 8; ++k) {
+				if ((block_map_buf[j] & (1 << k)) != 0) {
+					++used_block;
+				}
+			}
+		}
+	}
+	printk("inode used : %d/%d\n", used_inode, fs.inode_map_size * 8);
+	printk("block used : %d/%d\n", used_block, fs.block_map_size * 8);
+}
+
+void normalize_path(char *path)
+{
+	pcb_t *current_running = get_current_running();
+	char new_path[BUF_SIZE];
+	if (path[0] == '/') {
+		strcpy(new_path, path);
+	} else {
+		strcpy(new_path, current_running->wd);
+		strcat(new_path, "/");
+		strcat(new_path, path);
+	}
+	char path_bak[BUF_SIZE];
+	char normalized_path[BUF_SIZE] = "/";
+	strcpy(path_bak, new_path);
+	char *name = strtok(path_bak, "/");
+	if (name == NULL) {
+		strcpy(path, normalized_path);
+		return;
+	}
+	if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
+		strcat(normalized_path, name);
+	}
+	while ((name = strtok(NULL, "/")) != NULL) {
+		if (strcmp(name, ".") == 0) {
+			continue;
+		}
+		if (strcmp(name, "..") == 0) {
+			if (strcmp(normalized_path, "/") == 0) {
+				continue;
+			}
+			int i = strlen(normalized_path) - 1;
+			for (; normalized_path[i] != '/'; --i)
+				;
+			normalized_path[i] = '\0';
+		} else {
+			strcat(normalized_path, "/");
+			strcat(normalized_path, name);
+		}
+	}
+	strcpy(path, normalized_path);
+}
+
+void do_cd(char *path)
+{
+	pcb_t *current_running = get_current_running();
+	internel_cd(current_running->wd, path, &current_running->wd_inum);
+}
+
+void internel_cd(char *wd, char *path, uint32_t *wd_inum)
+{
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	normalize_path(path);
+	char new_wd[BUF_SIZE];
+	strcpy(new_wd, path);
+	uint32_t fa_file_inum, file_inum;
+	char *file_name;
+	parse_path(path, &fa_file_inum, &file_inum, DIR, &file_name);
+	if (file_inum == 0) {
+		printk("cd: Can not find %s\n", path_bak);
+		return;
+	}
+	strcpy(wd, new_wd);
+	*wd_inum = file_inum;
+}
+
+void do_rwd(char *wd)
+{
+	strcpy(wd, get_current_running()->wd);
+}
+
+void do_rmdir(char *path)
+{
+	pcb_t *current_running = get_current_running();
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t dir_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	if (dir_inum == 0 || fa_dir_inum == 0) {
+		printk("rmdir: Can not find %s\n", path_bak);
+		return;
+	}
+	inode_t dir_inode;
+	read_disk(get_inode_offset(dir_inum), (char *)&dir_inode,
+		  sizeof(inode_t));
+	if (dir_inode.size > 2 * sizeof(dentry_t)) {
+		printk("rmdir: failed to remove %s: Directory not empty\n",
+		       path_bak);
+		return;
+	}
+	if (dir_inode.inum == current_running->wd_inum) {
+		printk("rmdir: failed to remove %s: Danger action\n", path_bak);
+		return;
+	}
+	internel_rmfile(dir_inum, fa_dir_inum);
+}
+
+void free_block(uint32_t block_offset)
+{
+	uint32_t block_idx = (block_offset - fs.data_offset) / DISK_BLOCK_SIZE;
+	int k = block_idx % 8;
+	char data;
+	read_disk(fs.block_map_offset + block_idx / 8, &data, 1);
+	data = data & (~(1 << k));
+	write_disk(fs.block_map_offset + block_idx / 8, &data, 1);
+}
+
+void free_inode_block(uint32_t inode_offset)
+{
+	inode_t inode;
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	axis_t pos;
+	parse_inode_ptr(&pos, inode.size);
+	uint32_t block_offset[4];
+
+	block_offset[0] = inode.data_ptr[pos.axis[0]];
+	read_disk(block_offset[0] + pos.axis[1] * sizeof(uint32_t),
+		  (char *)&block_offset[1], sizeof(uint32_t));
+	read_disk(block_offset[1] + pos.axis[2] * sizeof(uint32_t),
+		  (char *)&block_offset[2], sizeof(uint32_t));
+	read_disk(block_offset[2] + pos.axis[3] * sizeof(uint32_t),
+		  (char *)&block_offset[3], sizeof(uint32_t));
+
+	if (pos.axis[0] < 7) {
+		goto direct;
+	} else if (pos.axis[0] < 10) {
+		goto first_level;
+	} else if (pos.axis[0] < 12) {
+		goto second_level;
+	} else {
+		goto third_level;
+	}
+
+third_level:
+	free_block(block_offset[3]);
+	write_disk(block_offset[2] + pos.axis[3] * sizeof(uint32_t), 0,
+		   sizeof(uint32_t));
+
+	if (pos.axis[3] != 0) {
+		return;
+	}
+second_level:
+	free_block(block_offset[2]);
+	write_disk(block_offset[1] + pos.axis[2] * sizeof(uint32_t), 0,
+		   sizeof(uint32_t));
+
+	if (pos.axis[2] != 0) {
+		return;
+	}
+first_level:
+	free_block(block_offset[1]);
+	write_disk(block_offset[0] + pos.axis[1] * sizeof(uint32_t), 0,
+		   sizeof(uint32_t));
+
+	if (pos.axis[1] != 0) {
+		return;
+	}
+direct:
+	free_block(block_offset[0]);
+	inode.data_ptr[pos.axis[0]] = 0;
+	write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+}
+
+void del_dentry(uint32_t inode_offset, uint32_t inum)
+{
+	inode_t inode;
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	uint32_t block_offset = 0;
+	for (uint32_t ptr = 0; ptr < inode.size; ptr += sizeof(dentry_t)) {
+		dentry_t dentry;
+		if (ptr % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset, ptr);
+		}
+		read_disk(block_offset + (ptr % DISK_BLOCK_SIZE),
+			  (char *)&dentry, sizeof(dentry_t));
+		if (dentry.inum == inum) {
+			if (ptr + sizeof(dentry_t) < inode.size) {
+				dentry_t last_dentry;
+				uint32_t last_block_offset = get_block(
+					&inode, inode_offset,
+					(ptr - sizeof(dentry_t)) -
+						((ptr - sizeof(dentry_t)) %
+						 DISK_BLOCK_SIZE));
+				read_disk(last_block_offset +
+						  (ptr - sizeof(dentry_t)) %
+							  DISK_BLOCK_SIZE,
+					  (char *)&last_dentry,
+					  sizeof(dentry_t));
+				write_disk(
+					block_offset + (ptr % DISK_BLOCK_SIZE),
+					(char *)&last_dentry, sizeof(dentry_t));
+			}
+			break;
+		}
+	}
+	inode.size -= sizeof(dentry_t);
+	write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	if (inode.size % DISK_BLOCK_SIZE == 0) {
+		free_inode_block(inode_offset);
+	}
+}
+
+void free_inode(uint32_t inode_offset)
+{
+	inode_t inode;
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	for (inode.size = inode.size - (inode.size % DISK_BLOCK_SIZE);;
+	     inode.size -= DISK_BLOCK_SIZE) {
+		write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+		free_inode_block(inode_offset);
+		if (inode.size == 0)
+			break;
+	}
+	uint32_t inode_idx = (inode_offset - fs.inode_offset) / sizeof(inode_t);
+	int k = inode_idx % 8;
+	char data;
+	read_disk(fs.inode_map_offset + inode_idx / 8, &data, 1);
+	data = data & (~(1 << k));
+	write_disk(fs.inode_map_offset + inode_idx / 8, &data, 1);
+}
+
+void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum)
+{
+	del_dentry(get_inode_offset(fa_dir_inum), dir_inum);
+	free_inode(get_inode_offset(dir_inum));
 }

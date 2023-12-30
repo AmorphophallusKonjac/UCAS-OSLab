@@ -38,6 +38,7 @@
 
 #define NUM_MAX_TASK 16
 #define NUM_MAX_CPU 2
+#define BUF_SIZE 256
 
 /* used to save register infomation */
 typedef struct regs_context {
@@ -109,6 +110,9 @@ typedef struct pcb {
 	PTE *pagedir;
 
 	ptr_t next_stack_base;
+
+	char wd[BUF_SIZE];
+	uint32_t wd_inum;
 
 } pcb_t, tcb_t;
 

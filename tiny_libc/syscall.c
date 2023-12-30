@@ -367,12 +367,35 @@ void sys_mkfs()
 	invoke_syscall(SYSCALL_MKFS, IGNORE, IGNORE, IGNORE, IGNORE, IGNORE);
 }
 
-void sys_ls(int inum, char *path, int detailed)
+void sys_ls(char *path, int detailed)
 {
-	invoke_syscall(SYSCALL_LS, inum, (long)path, detailed, IGNORE, IGNORE);
+	invoke_syscall(SYSCALL_LS, (long)path, detailed, IGNORE, IGNORE,
+		       IGNORE);
 }
 
-void sys_mkdir(int inum, char *path)
+void sys_mkdir(char *path)
 {
-	invoke_syscall(SYSCALL_MKDIR, inum, (long)path, IGNORE, IGNORE, IGNORE);
+	invoke_syscall(SYSCALL_MKDIR, (long)path, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
+}
+
+void sys_statfs()
+{
+	invoke_syscall(SYSCALL_STATFS, IGNORE, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
+void sys_cd(char *path)
+{
+	invoke_syscall(SYSCALL_CD, (long)path, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
+void sys_rwd(char *wd)
+{
+	invoke_syscall(SYSCALL_RWD, (long)wd, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
+void sys_rmdir(char *path)
+{
+	invoke_syscall(SYSCALL_RMDIR, (long)path, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
 }

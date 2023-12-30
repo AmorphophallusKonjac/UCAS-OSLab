@@ -43,8 +43,7 @@ struct pair {
 	long (*parser)();
 } command[SYSCALL_NUM];
 
-uint32_t inum = 1;
-char path[BUF_SIZE] = "/";
+char wd[BUF_SIZE];
 
 /*****************************************************************************************/
 
@@ -186,14 +185,14 @@ void lsParser(int argc, char **argv)
 			break;
 		}
 	}
-	char name[256] = "";
+	char path[256] = "";
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp("-l", argv[i]) != 0) {
-			strcpy(name, argv[i]);
+			strcpy(path, argv[i]);
 			break;
 		}
 	}
-	sys_ls(inum, name, detailed);
+	sys_ls(path, detailed);
 }
 
 void mkdirParser(int argc, char **argv)
@@ -202,7 +201,30 @@ void mkdirParser(int argc, char **argv)
 		printf("Error: Miss directory name\n");
 		return;
 	}
-	sys_mkdir(inum, argv[1]);
+	sys_mkdir(argv[1]);
+}
+
+void statfsParser(int argc, char **argv)
+{
+	sys_statfs();
+}
+
+void cdParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss directory name\n");
+		return;
+	}
+	sys_cd(argv[1]);
+}
+
+void rmdirParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss directory name\n");
+		return;
+	}
+	sys_rmdir(argv[1]);
 }
 
 void parseArg(char *arg, int *argc, char **argv)
@@ -270,6 +292,15 @@ void initSyscall()
 
 	strcpy(command[7].name, "mkdir");
 	command[7].parser = (long (*)())mkdirParser;
+
+	strcpy(command[8].name, "statfs");
+	command[8].parser = (long (*)())statfsParser;
+
+	strcpy(command[9].name, "cd");
+	command[9].parser = (long (*)())cdParser;
+
+	strcpy(command[10].name, "rmdir");
+	command[10].parser = (long (*)())rmdirParser;
 }
 
 int main(void)
@@ -280,7 +311,8 @@ int main(void)
 	int len = 0;
 	sys_move_cursor(0, SHELL_BEGIN);
 	printf("------------------- COMMAND -------------------\n");
-	printf("> root@UCAS_OS:%s# ", path);
+	sys_rwd(wd);
+	printf("> root@UCAS_OS:%s# ", wd);
 
 	while (1) {
 		// TODO [P3-task1]: call syscall to read UART port
@@ -292,7 +324,8 @@ int main(void)
 			clientEntrypoint(buf);
 			len = 0;
 			buf[len] = '\0';
-			printf("> root@UCAS_OS:%s# ", path);
+			sys_rwd(wd);
+			printf("> root@UCAS_OS:%s# ", wd);
 		} else {
 			if (ch == 8 || ch == 127) {
 				if (len) {
@@ -301,8 +334,9 @@ int main(void)
 				}
 			} else {
 				if (len == BUF_SIZE) {
+					sys_rwd(wd);
 					printf("\nError: command too long!\n> root@UCAS_OS:%s# ",
-					       path);
+					       wd);
 					len = 0;
 					buf[len] = '\0';
 					continue;

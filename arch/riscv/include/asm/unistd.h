@@ -40,6 +40,7 @@
 #define SYSCALL_SHM_DT 57
 #define SYSCALL_NET_SEND 63
 #define SYSCALL_NET_RECV 64
+#define SYSCALL_RWD 65
 
 // printl
 #define SYSCALL_BIOS_LOGGING 80
@@ -60,5 +61,8 @@
 #define SYSCALL_MKFS 90
 #define SYSCALL_LS 91
 #define SYSCALL_MKDIR 92
+#define SYSCALL_STATFS 93
+#define SYSCALL_CD 94
+#define SYSCALL_RMDIR 95
 
 #endif

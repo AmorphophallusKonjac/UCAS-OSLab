@@ -84,17 +84,28 @@ uint32_t lookup_disk_cache(uint32_t sector_idx);
 uint32_t refill_disk_cache(uint32_t sector_idx);
 uint32_t internel_mkdir(uint32_t fa_inum, char *name);
 uint32_t alloc_inode();
+void free_inode(uint32_t inode_offset);
 void add_dentry(uint32_t inode_offset, uint32_t inum, char *name);
+void del_dentry(uint32_t inode_offset, uint32_t inum);
 uint32_t get_inum(uint32_t inode_offset);
 void parse_inode_ptr(axis_t *pos, uint64_t ptr);
 uint32_t get_block(inode_t *inode, uint32_t inode_size, uint32_t ptr);
 uint32_t alloc_block();
+void free_block(uint32_t block_offset);
+void free_inode_block(uint32_t inode_offset);
 uint32_t get_inode_offset(uint32_t inum);
-void do_ls(uint32_t inum, char *path, int detailed);
-uint32_t internel_ls(uint32_t inum, int detailed);
-void do_mkdir(uint32_t inum, char *path);
-void parse_path(uint32_t dir_inum, char *path, uint32_t *fa_inum,
-		uint32_t *inum, uint16_t mode, char **file_name);
+void do_ls(char *path, int detailed);
+uint32_t internel_ls(uint32_t dir_inum, int detailed);
+void do_mkdir(char *path);
+void parse_path(char *path, uint32_t *fa_inum, uint32_t *inum, uint16_t mode,
+		char **file_name);
 uint32_t find_file(uint32_t inum, char *name, uint16_t mode);
+void do_statfs();
+void do_cd(char *path);
+void internel_cd(char *wd, char *path, uint32_t *wd_inum);
+void normalize_path(char *path);
+void do_rwd(char *wd);
+void do_rmdir(char *path);
+void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum);
 
 #endif

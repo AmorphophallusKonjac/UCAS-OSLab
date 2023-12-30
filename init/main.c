@@ -157,6 +157,8 @@ static void init_pcb(void)
 			       0);
 		list_push(&ready_queue, &pcb[i].list);
 		from_name_load_task_img(needed_task_name[i], &pcb[i]);
+		strcpy(pcb[i].wd, "/");
+		pcb[i].wd_inum = 1;
 	}
 
 	/* TODO: [p2-task1] remember to initialize 'current_running' */
@@ -209,6 +211,7 @@ static void init_syscall(void)
 	syscall[SYSCALL_SHM_DT] = (long (*)())shm_page_dt;
 	syscall[SYSCALL_NET_SEND] = (long (*)())do_net_send;
 	syscall[SYSCALL_NET_RECV] = (long (*)())do_net_recv;
+	syscall[SYSCALL_RWD] = (long (*)())do_rwd;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;
@@ -224,6 +227,9 @@ static void init_syscall(void)
 	syscall[SYSCALL_MKFS] = (long (*)())do_mkfs;
 	syscall[SYSCALL_LS] = (long (*)())do_ls;
 	syscall[SYSCALL_MKDIR] = (long (*)())do_mkdir;
+	syscall[SYSCALL_STATFS] = (long (*)())do_statfs;
+	syscall[SYSCALL_CD] = (long (*)())do_cd;
+	syscall[SYSCALL_RMDIR] = (long (*)())do_rmdir;
 }
 /************************************************************/
 
