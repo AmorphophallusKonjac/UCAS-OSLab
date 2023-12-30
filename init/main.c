@@ -212,6 +212,10 @@ static void init_syscall(void)
 	syscall[SYSCALL_NET_SEND] = (long (*)())do_net_send;
 	syscall[SYSCALL_NET_RECV] = (long (*)())do_net_recv;
 	syscall[SYSCALL_RWD] = (long (*)())do_rwd;
+	syscall[SYSCALL_TOUCH] = (long (*)())do_touch;
+	syscall[SYSCALL_CAT] = (long (*)())do_cat;
+	syscall[SYSCALL_LN] = (long (*)())do_ln;
+	syscall[SYSCALL_RM] = (long (*)())do_rm;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;

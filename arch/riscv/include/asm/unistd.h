@@ -41,6 +41,10 @@
 #define SYSCALL_NET_SEND 63
 #define SYSCALL_NET_RECV 64
 #define SYSCALL_RWD 65
+#define SYSCALL_TOUCH 66
+#define SYSCALL_CAT 67
+#define SYSCALL_LN 68
+#define SYSCALL_RM 69
 
 // printl
 #define SYSCALL_BIOS_LOGGING 80

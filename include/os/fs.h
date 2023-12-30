@@ -107,5 +107,12 @@ void normalize_path(char *path);
 void do_rwd(char *wd);
 void do_rmdir(char *path);
 void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum);
+void do_touch(char *path);
+void internel_touch(uint32_t fa_inum, char *name);
+void do_cat(char *path);
+void internel_cat(uint32_t inum);
+void do_ln(char *link_target, char *path);
+void internel_ln(uint32_t dir_inum, uint32_t target_inum, char *name);
+void do_rm(char *path);
 
 #endif

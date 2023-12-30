@@ -227,6 +227,42 @@ void rmdirParser(int argc, char **argv)
 	sys_rmdir(argv[1]);
 }
 
+void touchParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss file name\n");
+		return;
+	}
+	sys_touch(argv[1]);
+}
+
+void catParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss file name\n");
+		return;
+	}
+	sys_cat(argv[1]);
+}
+
+void lnParser(int argc, char **argv)
+{
+	if (argc < 3) {
+		printf("Error: Miss file name\n");
+		return;
+	}
+	sys_ln(argv[1], argv[2]);
+}
+
+void rmParser(int argc, char **argv)
+{
+	if (argc < 2) {
+		printf("Error: Miss file name\n");
+		return;
+	}
+	sys_rm(argv[1]);
+}
+
 void parseArg(char *arg, int *argc, char **argv)
 {
 	*argc = 0;
@@ -301,6 +337,18 @@ void initSyscall()
 
 	strcpy(command[10].name, "rmdir");
 	command[10].parser = (long (*)())rmdirParser;
+
+	strcpy(command[11].name, "touch");
+	command[11].parser = (long (*)())touchParser;
+
+	strcpy(command[12].name, "cat");
+	command[12].parser = (long (*)())catParser;
+
+	strcpy(command[13].name, "ln");
+	command[13].parser = (long (*)())lnParser;
+
+	strcpy(command[14].name, "rm");
+	command[14].parser = (long (*)())rmParser;
 }
 
 int main(void)

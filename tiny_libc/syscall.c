@@ -399,3 +399,25 @@ void sys_rmdir(char *path)
 	invoke_syscall(SYSCALL_RMDIR, (long)path, IGNORE, IGNORE, IGNORE,
 		       IGNORE);
 }
+
+void sys_touch(char *path)
+{
+	invoke_syscall(SYSCALL_TOUCH, (long)path, IGNORE, IGNORE, IGNORE,
+		       IGNORE);
+}
+
+void sys_cat(char *path)
+{
+	invoke_syscall(SYSCALL_CAT, (long)path, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
+void sys_ln(char *target_path, char *path)
+{
+	invoke_syscall(SYSCALL_LN, (long)target_path, (long)path, IGNORE,
+		       IGNORE, IGNORE);
+}
+
+void sys_rm(char *path)
+{
+	invoke_syscall(SYSCALL_RM, (long)path, IGNORE, IGNORE, IGNORE, IGNORE);
+}

@@ -32,6 +32,10 @@ void sys_statfs();
 void sys_cd(char *path);
 void sys_rwd(char *wd);
 void sys_rmdir(char *path);
+void sys_touch(char *path);
+void sys_cat(char *path);
+void sys_ln(char *target_path, char *path);
+void sys_rm(char *path);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */

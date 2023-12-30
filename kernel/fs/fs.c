@@ -31,6 +31,9 @@ void init_inode()
 {
 	// init_map(fs.inode_offset, fs.inode_size);
 	internel_mkdir(0, "");
+	do_mkdir("/dev");
+	do_mkdir("/tmp");
+	do_mkdir("/mnt");
 }
 
 void do_mkfs()
@@ -437,6 +440,9 @@ void parse_path(char *path, uint32_t *fa_inum, uint32_t *inum, uint16_t mode,
 	char *name = strtok(path, "/");
 	*file_name = name;
 	if (name == NULL) {
+		if (mode == FILE) {
+			*inum = 0;
+		}
 		return;
 	}
 	*fa_inum = *inum;
@@ -746,8 +752,135 @@ void free_inode(uint32_t inode_offset)
 	write_disk(fs.inode_map_offset + inode_idx / 8, &data, 1);
 }
 
-void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum)
+void internel_rmfile(uint32_t inum, uint32_t fa_dir_inum)
 {
-	del_dentry(get_inode_offset(fa_dir_inum), dir_inum);
-	free_inode(get_inode_offset(dir_inum));
+	del_dentry(get_inode_offset(fa_dir_inum), inum);
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	if ((inode.mode == FILE && inode.link_num == 1) || inode.mode == DIR) {
+		free_inode(inode_offset);
+	} else {
+		--inode.link_num;
+		write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	}
+}
+
+void do_touch(char *path)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	if (file_inum != 0) {
+		printk("touch: %s File exists\n", path_bak);
+		return;
+	}
+	if (fa_dir_inum == 0) {
+		printk("touch: Can not find %s\n", path_bak);
+		return;
+	}
+	internel_touch(fa_dir_inum, name);
+}
+
+void internel_touch(uint32_t fa_inum, char *name)
+{
+	uint32_t inode_offset = alloc_inode();
+	inode_t inode;
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	inode.mode = FILE;
+	inode.link_num = 1;
+	inode.size = 0;
+	uint32_t inum = inode.inum;
+	write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	add_dentry(get_inode_offset(fa_inum), inum, name);
+}
+
+void do_cat(char *path)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	if (file_inum == 0 || fa_dir_inum == 0) {
+		printk("cat: Can not find %s\n", path_bak);
+		return;
+	}
+	internel_cat(file_inum);
+}
+
+void internel_cat(uint32_t inum)
+{
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	uint32_t block_offset = 0;
+	for (uint32_t ptr = 0; ptr < inode.size; ptr++) {
+		if (ptr % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset, ptr);
+		}
+		char data;
+		read_disk(block_offset + (ptr % DISK_BLOCK_SIZE), &data, 1);
+		printk("%c", data);
+	}
+}
+
+void do_ln(char *link_target, char *path)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	if (file_inum != 0) {
+		printk("ln: %s File exists\n", path_bak);
+		return;
+	}
+	if (fa_dir_inum == 0) {
+		printk("ln: Can not find %s\n", path_bak);
+		return;
+	}
+	char *target_name = NULL;
+	char link_target_bak[BUF_SIZE];
+	strcpy(link_target_bak, link_target);
+	uint32_t target_file_inum, target_fa_dir_inum;
+	normalize_path(link_target);
+	parse_path(link_target, &target_fa_dir_inum, &target_file_inum, FILE,
+		   &target_name);
+	if (target_fa_dir_inum == 0 || target_file_inum == 0) {
+		printk("ln: Can not find %s\n", link_target_bak);
+		return;
+	}
+	internel_ln(fa_dir_inum, target_file_inum, name);
+}
+
+void internel_ln(uint32_t dir_inum, uint32_t target_inum, char *name)
+{
+	inode_t inode;
+	read_disk(get_inode_offset(target_inum), (char *)&inode,
+		  sizeof(inode_t));
+	++inode.link_num;
+	write_disk(get_inode_offset(target_inum), (char *)&inode,
+		   sizeof(inode_t));
+	add_dentry(get_inode_offset(dir_inum), target_inum, name);
+}
+
+void do_rm(char *path)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	if (file_inum == 0 || fa_dir_inum == 0) {
+		printk("rm: Can not find %s\n", path_bak);
+		return;
+	}
+	internel_rmfile(file_inum, fa_dir_inum);
 }
