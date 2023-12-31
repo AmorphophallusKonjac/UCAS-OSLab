@@ -18,15 +18,17 @@ int main(void)
 	assert(itoa(print_location + 3, print_location2, BUF_LEN, 10) != -1);
 
 	char *argv1[2] = { "rdfile", print_location1 };
-	pid_t pid = sys_exec("rdfile", 2, argv1);
+	pid_t pid1 = sys_exec("rdfile", 2, argv1);
 
-	sys_waitpid(pid);
+	sys_waitpid(pid1);
 
 	sys_move_cursor(0, 3);
 	printf("start second test\n");
 
 	char *argv2[2] = { "rdfile", print_location2 };
-	sys_exec("rdfile", 2, argv2);
+	pid_t pid2 = sys_exec("rdfile", 2, argv2);
+
+	sys_waitpid(pid2);
 
 	sys_move_cursor(0, 5);
 	printf("finished\n");

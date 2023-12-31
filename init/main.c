@@ -275,7 +275,7 @@ int main(void)
 
 		// Init Physical memory allocator
 		initkmem();
-		bios_putstr("[INIT] Memory initialization succeeded.\n\r");
+		bios_putstr("> [INIT] Memory initialization succeeded.\n\r");
 
 		// Read Flatten Device Tree (｡•ᴗ-)_
 		time_base = bios_read_fdt(TIMEBASE);
@@ -333,6 +333,10 @@ int main(void)
 		// Init system call table (0_0)
 		init_syscall();
 		printk("> [INIT] System call initialized successfully.\n");
+
+		// Init file descriptor table
+		init_fd();
+		printk("> [INIT] file descriptor table initialized successfully.\n");
 
 		// Init screen (QAQ)
 		init_screen();

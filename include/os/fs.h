@@ -12,6 +12,8 @@
 
 #define DISK_BLOCK_SIZE (1ul << 12)
 
+#define DISK_BLOCK_PTR_NUM (1ul << 10)
+
 #define DISK_CACHE_NUM (DISK_CACHE_SIZE / DISK_BLOCK_SIZE)
 
 #define SECTOR_SIZE 512
@@ -107,7 +109,7 @@ uint32_t internel_mkdir(uint32_t fa_inum, char *name);
 uint32_t alloc_inode();
 void free_inode(uint32_t inode_offset);
 void add_dentry(uint32_t inode_offset, uint32_t inum, char *name);
-void del_dentry(uint32_t inode_offset, uint32_t inum);
+void del_dentry(uint32_t inode_offset, uint32_t inum, char *name);
 uint32_t get_inum(uint32_t inode_offset);
 void parse_inode_ptr(axis_t *pos, uint64_t ptr);
 uint32_t get_block(inode_t *inode, uint32_t inode_size, uint32_t ptr);
@@ -127,7 +129,7 @@ void internel_cd(char *wd, char *path, uint32_t *wd_inum);
 void normalize_path(char *path);
 void do_rwd(char *wd);
 void do_rmdir(char *path);
-void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum);
+void internel_rmfile(uint32_t dir_inum, uint32_t fa_dir_inum, char *name);
 void do_touch(char *path);
 void internel_touch(uint32_t fa_inum, char *name);
 void do_cat(char *path);
