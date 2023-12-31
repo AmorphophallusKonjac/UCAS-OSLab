@@ -36,6 +36,11 @@ void sys_touch(char *path);
 void sys_cat(char *path);
 void sys_ln(char *target_path, char *path);
 void sys_rm(char *path);
+int sys_fopen(char *path, int access);
+void sys_fclose(int fd_num);
+int sys_fread(int fd_num, char *buff, int size);
+int sys_fwrite(int fd_num, char *buff, int size);
+int sys_lseek(int fd_num, int offset, int whence);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */

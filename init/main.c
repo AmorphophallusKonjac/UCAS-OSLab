@@ -216,6 +216,11 @@ static void init_syscall(void)
 	syscall[SYSCALL_CAT] = (long (*)())do_cat;
 	syscall[SYSCALL_LN] = (long (*)())do_ln;
 	syscall[SYSCALL_RM] = (long (*)())do_rm;
+	syscall[SYSCALL_FOPEN] = (long (*)())do_fopen;
+	syscall[SYSCALL_FCLOSE] = (long (*)())do_fclose;
+	syscall[SYSCALL_FREAD] = (long (*)())do_fread;
+	syscall[SYSCALL_FWRITE] = (long (*)())do_fwrite;
+	syscall[SYSCALL_LSEEK] = (long (*)())do_lseek;
 
 	syscall[SYSCALL_BIOS_LOGGING] = (long (*)())bios_logging;
 	syscall[SYSCALL_THREAD_CREATE] = (long (*)())thread_create;

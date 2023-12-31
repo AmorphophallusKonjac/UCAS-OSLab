@@ -7,6 +7,7 @@
 #include <screen.h>
 
 disk_cache_v_idx_t disk_cache_v_idx[DISK_CACHE_NUM];
+fd_t fd[FD_NUM];
 
 void print_superblock(fs_t *fs)
 {
@@ -883,4 +884,163 @@ void do_rm(char *path)
 		return;
 	}
 	internel_rmfile(file_inum, fa_dir_inum);
+}
+
+void init_fd()
+{
+	for (int i = 0; i < FD_NUM; ++i) {
+		fd[i].access = 0;
+		fd[i].inum = 0;
+		fd[i].pos = 0;
+	}
+}
+
+int do_fopen(char *path, uint32_t access)
+{
+	char *name = NULL;
+	char path_bak[BUF_SIZE];
+	strcpy(path_bak, path);
+	uint32_t file_inum, fa_dir_inum;
+	normalize_path(path);
+	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	if (file_inum == 0 || fa_dir_inum == 0) {
+		printk("fopen: Can not find %s\n", path_bak);
+		return 0;
+	}
+	return internel_fopen(file_inum, access);
+}
+
+int internel_fopen(uint32_t inum, uint32_t access)
+{
+	int ret = 0;
+	for (int i = 0; i < FD_NUM; ++i) {
+		spin_lock_acquire(&fd[i].lock);
+		if (fd[i].inum == 0) {
+			ret = i + 1;
+			fd[i].inum = inum;
+			fd[i].access = access;
+			fd[i].pos = 0;
+			fd[i].pid = get_current_running()->pid;
+			spin_lock_release(&fd[i].lock);
+			return ret;
+		}
+		spin_lock_release(&fd[i].lock);
+	}
+	printk("fopen: No more fd\n");
+	return ret;
+}
+
+void do_fclose(int fd_num)
+{
+	int idx = fd_num - 1;
+	spin_lock_acquire(&fd[idx].lock);
+	if (fd[idx].pid == get_current_running()->pid) {
+		fd[idx].inum = 0;
+		fd[idx].access = 0;
+		fd[idx].pos = 0;
+		fd[idx].pid = 0;
+	} else {
+		printk("fclose: you do not own this fd\n");
+	}
+	spin_lock_release(&fd[idx].lock);
+}
+
+int do_fread(int fd_num, char *buff, int size)
+{
+	int idx = fd_num - 1;
+	if (fd[idx].pid != get_current_running()->pid) {
+		printk("fread: you do not own this fd\n");
+		return 0;
+	}
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(fd[idx].inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	if (inode.size - fd[idx].pos < size) {
+		size = inode.size - fd[idx].pos;
+	}
+	uint32_t block_offset = get_block(&inode, inode_offset, fd[idx].pos);
+	for (int i = 0; i < size;) {
+		if ((fd[idx].pos + i) % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset,
+						 fd[idx].pos + i);
+		}
+		uint32_t next_i =
+			(fd[idx].pos + i) / DISK_BLOCK_SIZE * DISK_BLOCK_SIZE +
+			DISK_BLOCK_SIZE - fd[idx].pos;
+		next_i = (next_i < size) ? next_i : size;
+		read_disk(block_offset + (fd[idx].pos + i) % DISK_BLOCK_SIZE,
+			  buff, next_i - i);
+		i = next_i;
+	}
+	fd[idx].pos += size;
+	return size;
+}
+
+int do_fwrite(int fd_num, char *buff, int size)
+{
+	int idx = fd_num - 1;
+	if (fd[idx].pid != get_current_running()->pid) {
+		printk("fwrite: you do not own this fd\n");
+		return 0;
+	}
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(fd[idx].inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	uint32_t block_offset = get_block(&inode, inode_offset, fd[idx].pos);
+	for (int i = 0; i < size;) {
+		if ((fd[idx].pos + i) % DISK_BLOCK_SIZE == 0) {
+			block_offset = get_block(&inode, inode_offset,
+						 fd[idx].pos + i);
+		}
+		uint32_t next_i =
+			(fd[idx].pos + i) / DISK_BLOCK_SIZE * DISK_BLOCK_SIZE +
+			DISK_BLOCK_SIZE - fd[idx].pos;
+		next_i = (next_i < size) ? next_i : size;
+		write_disk(block_offset + (fd[idx].pos + i) % DISK_BLOCK_SIZE,
+			   buff, next_i - i);
+		i = next_i;
+	}
+	fd[idx].pos += size;
+	inode.size = (fd[idx].pos < inode.size) ? inode.size : fd[idx].pos;
+	write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	return size;
+}
+
+int do_lseek(int fd_num, int offset, int whence)
+{
+	int idx = fd_num - 1;
+	if (fd[idx].pid != get_current_running()->pid) {
+		printk("lseek: you do not own this fd\n");
+		return 0;
+	}
+	inode_t inode;
+	uint32_t inode_offset = get_inode_offset(fd[idx].inum);
+	read_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+	int pos = 0;
+	switch (whence) {
+	case SEEK_SET:
+		pos = offset;
+		if (pos < 0 || pos > inode.size) {
+			printk("lseek: error offset\n");
+			return 1;
+		}
+		break;
+	case SEEK_CUR:
+		pos += offset;
+		if (pos < 0 || pos > inode.size) {
+			printk("lseek: error offset\n");
+			return 1;
+		}
+		break;
+	case SEEK_END:
+		pos = inode.size + offset;
+		inode.size += offset;
+		write_disk(inode_offset, (char *)&inode, sizeof(inode_t));
+		break;
+	default:
+		printk("lseek: unknown whence\n");
+		return 1;
+	}
+	fd[idx].pos = pos;
+	return 0;
 }

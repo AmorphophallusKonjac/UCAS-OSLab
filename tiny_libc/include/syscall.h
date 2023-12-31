@@ -45,6 +45,11 @@
 #define SYSCALL_CAT 67
 #define SYSCALL_LN 68
 #define SYSCALL_RM 69
+#define SYSCALL_FOPEN 70
+#define SYSCALL_FCLOSE 71
+#define SYSCALL_FREAD 72
+#define SYSCALL_FWRITE 73
+#define SYSCALL_LSEEK 74
 
 // printl
 #define SYSCALL_BIOS_LOGGING 80

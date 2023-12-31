@@ -2,6 +2,7 @@
 #define __FS_H__
 
 #include <type.h>
+#include <os/lock.h>
 
 #define FS_SECTOR_BASE (1ul << 20)
 
@@ -32,6 +33,18 @@
 #define DIR 1
 
 #define FS_SIZE (1ul << 29)
+
+#define FD_ACCESS_READ 1
+
+#define FD_ACCESS_WRITE 2
+
+#define FD_NUM 100
+
+#define SEEK_SET 0
+
+#define SEEK_CUR 1
+
+#define SEEK_END 2
 
 char *disk_cache_data;
 
@@ -70,6 +83,14 @@ typedef struct dentry {
 typedef struct axis {
 	uint32_t axis[4];
 } axis_t;
+
+typedef struct fd {
+	uint32_t access;
+	uint32_t pos;
+	uint32_t inum;
+	uint32_t pid;
+	spin_lock_t lock;
+} fd_t;
 
 void init_map();
 void init_inode();
@@ -114,5 +135,12 @@ void internel_cat(uint32_t inum);
 void do_ln(char *link_target, char *path);
 void internel_ln(uint32_t dir_inum, uint32_t target_inum, char *name);
 void do_rm(char *path);
+void init_fd();
+int do_fopen(char *path, uint32_t access);
+int internel_fopen(uint32_t inum, uint32_t access);
+void do_fclose(int fd);
+int do_fread(int fd_num, char *buff, int size);
+int do_fwrite(int fd_num, char *buff, int size);
+int do_lseek(int fd_num, int offset, int whence);
 
 #endif

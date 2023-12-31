@@ -421,3 +421,32 @@ void sys_rm(char *path)
 {
 	invoke_syscall(SYSCALL_RM, (long)path, IGNORE, IGNORE, IGNORE, IGNORE);
 }
+
+int sys_fopen(char *path, int access)
+{
+	return invoke_syscall(SYSCALL_FOPEN, (long)path, access, IGNORE, IGNORE,
+			      IGNORE);
+}
+
+void sys_fclose(int fd_num)
+{
+	invoke_syscall(SYSCALL_FCLOSE, fd_num, IGNORE, IGNORE, IGNORE, IGNORE);
+}
+
+int sys_fread(int fd_num, char *buff, int size)
+{
+	return invoke_syscall(SYSCALL_FREAD, fd_num, (long)buff, size, IGNORE,
+			      IGNORE);
+}
+
+int sys_fwrite(int fd_num, char *buff, int size)
+{
+	return invoke_syscall(SYSCALL_FWRITE, fd_num, (long)buff, size, IGNORE,
+			      IGNORE);
+}
+
+int sys_lseek(int fd_num, int offset, int whence)
+{
+	return invoke_syscall(SYSCALL_LSEEK, fd_num, offset, whence, IGNORE,
+			      IGNORE);
+}
