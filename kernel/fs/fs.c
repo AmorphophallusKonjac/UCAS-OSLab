@@ -40,6 +40,7 @@ void init_inode()
 
 void do_mkfs()
 {
+	init_fd();
 	local_flush_disk_cache();
 	pcb_t *current_running = get_current_running();
 	printk("[FS] Start filesystem!\n");
