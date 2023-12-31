@@ -63,11 +63,10 @@ typedef struct fs {
 	uint32_t inode_offset, inode_size;
 	uint32_t data_offset, data_size;
 	uint32_t size;
+	uint32_t inum;
 } fs_t;
 
 fs_t fs;
-
-uint32_t inum;
 
 typedef struct inode {
 	uint16_t mode;

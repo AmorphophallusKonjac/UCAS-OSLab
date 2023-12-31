@@ -12,6 +12,7 @@ fd_t fd[FD_NUM];
 void print_superblock(fs_t *fs)
 {
 	printk("[FS] magic : 0x%lX\n", fs->magic);
+	printk("[FS] inum ptr : %d\n", fs->inum);
 	printk("[FS] size : 0x%lXMB\n", fs->size / 1024 / 1024);
 	printk("[FS] block map offset : 0x%lX\n", fs->block_map_offset);
 	printk("[FS] inode map offset : 0x%lX\n", fs->inode_map_offset);
@@ -30,8 +31,6 @@ void init_map(uint32_t offset, uint32_t size)
 
 void init_inode()
 {
-	// init_map(fs.inode_offset, fs.inode_size);
-	inum = 0;
 	internel_mkdir(0, "");
 	do_mkdir("/dev");
 	do_mkdir("/tmp");
@@ -58,6 +57,7 @@ void do_mkfs()
 		printk("[FS] Setting superblock...\n");
 		fs.magic = FS_MAGIC;
 		fs.size = FS_SIZE;
+		fs.inum = 0;
 
 		fs.block_map_offset = DISK_BLOCK_SIZE;
 		fs.block_map_size = BLOCK_MAP_SIZE;
@@ -179,7 +179,8 @@ uint32_t alloc_inode()
 	inode.mode = FILE;
 	inode.link_num = 1;
 	inode.size = 0;
-	inode.inum = ++inum;
+	inode.inum = ++fs.inum;
+	write_disk(0, (char *)&fs, sizeof(fs_t));
 	for (int i = 0; i < DATA_PTR_NUM; ++i) {
 		inode.data_ptr[i] = 0;
 	}
