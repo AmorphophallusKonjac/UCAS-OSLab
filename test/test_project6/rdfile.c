@@ -5,7 +5,7 @@
 #include <fs.h>
 #include <time.h>
 
-#define SIZE (1ul << 23)
+#define SIZE (1ul << 20)
 
 #define BLOCK_SIZE (1ul << 12)
 
@@ -15,7 +15,7 @@ int main(int argc, char **argv)
 {
 	int print_location = (argc == 1) ? 0 : atoi(argv[1]);
 	clock_t begin = clock();
-	int fd = sys_fopen("big_file", O_RDWR);
+	int fd = sys_fopen("1MB", O_RDWR);
 	for (int i = 0; i < SIZE; i += BLOCK_SIZE) {
 		sys_fread(fd, buf, BLOCK_SIZE);
 	}

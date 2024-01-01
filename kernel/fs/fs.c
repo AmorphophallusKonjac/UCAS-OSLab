@@ -92,7 +92,6 @@ void do_mkfs()
 void init_disk_cache()
 {
 	disk_cache_data = (char *)DISK_CACHE_BASE;
-	bzero((void *)disk_cache_data, DISK_CACHE_SIZE);
 	for (int i = 0; i < DISK_CACHE_NUM; ++i) {
 		disk_cache_v_idx[i].sector_idx = 0;
 		disk_cache_v_idx[i].v = 0;
