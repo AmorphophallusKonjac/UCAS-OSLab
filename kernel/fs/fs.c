@@ -378,17 +378,17 @@ uint32_t get_inode_offset(uint32_t inum)
 void do_mkdir(char *path)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t dir_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &dir_inum, DIR, &name);
 	if (dir_inum != 0) {
-		printk("mkdir: %s File exists\n", path_bak);
+		printk("mkdir: %s File exists\n", path);
 		return;
 	}
 	if (fa_dir_inum == 0) {
-		printk("mkdir: Can not find %s\n", path_bak);
+		printk("mkdir: Can not find %s\n", path);
 		return;
 	}
 	internel_mkdir(fa_dir_inum, name);
@@ -468,14 +468,14 @@ void parse_path(char *path, uint32_t *fa_inum, uint32_t *inum, uint16_t mode,
 
 void do_ls(char *path, int detailed)
 {
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
-	normalize_path(path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
+	normalize_path(npath);
 	char *name = NULL;
 	uint32_t dir_inum, fa_dir_inum;
-	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	parse_path(npath, &fa_dir_inum, &dir_inum, DIR, &name);
 	if (dir_inum == 0) {
-		printk("ls: Can not find %s\n", path_bak);
+		printk("ls: Can not find %s\n", path);
 		return;
 	}
 	internel_ls(dir_inum, detailed);
@@ -548,18 +548,21 @@ void normalize_path(char *path)
 		strcpy(new_path, path);
 	} else {
 		strcpy(new_path, current_running->wd);
-		strcat(new_path, "/");
+		if (new_path[strlen(new_path) - 1] != '/')
+			strcat(new_path, "/");
 		strcat(new_path, path);
 	}
 	char path_bak[BUF_SIZE];
-	char normalized_path[BUF_SIZE] = "/";
+	char normalized_path[BUF_SIZE] = "";
 	strcpy(path_bak, new_path);
 	char *name = strtok(path_bak, "/");
 	if (name == NULL) {
+		strcat(normalized_path, "/");
 		strcpy(path, normalized_path);
 		return;
 	}
 	if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0) {
+		strcat(normalized_path, "/");
 		strcat(normalized_path, name);
 	}
 	while ((name = strtok(NULL, "/")) != NULL) {
@@ -567,7 +570,7 @@ void normalize_path(char *path)
 			continue;
 		}
 		if (strcmp(name, "..") == 0) {
-			if (strcmp(normalized_path, "/") == 0) {
+			if (strcmp(normalized_path, "") == 0) {
 				continue;
 			}
 			int i = strlen(normalized_path) - 1;
@@ -578,6 +581,9 @@ void normalize_path(char *path)
 			strcat(normalized_path, "/");
 			strcat(normalized_path, name);
 		}
+	}
+	if (strcmp(normalized_path, "") == 0) {
+		strcat(normalized_path, "/");
 	}
 	strcpy(path, normalized_path);
 }
@@ -590,16 +596,16 @@ void do_cd(char *path)
 
 void internel_cd(char *wd, char *path, uint32_t *wd_inum)
 {
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
-	normalize_path(path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
+	normalize_path(npath);
 	char new_wd[BUF_SIZE];
-	strcpy(new_wd, path);
+	strcpy(new_wd, npath);
 	uint32_t fa_file_inum, file_inum;
 	char *file_name;
-	parse_path(path, &fa_file_inum, &file_inum, DIR, &file_name);
+	parse_path(npath, &fa_file_inum, &file_inum, DIR, &file_name);
 	if (file_inum == 0) {
-		printk("cd: Can not find %s\n", path_bak);
+		printk("cd: Can not find %s\n", path);
 		return;
 	}
 	strcpy(wd, new_wd);
@@ -615,13 +621,13 @@ void do_rmdir(char *path)
 {
 	pcb_t *current_running = get_current_running();
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t dir_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &dir_inum, DIR, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &dir_inum, DIR, &name);
 	if (dir_inum == 0 || fa_dir_inum == 0) {
-		printk("rmdir: Can not find %s\n", path_bak);
+		printk("rmdir: Can not find %s\n", path);
 		return;
 	}
 	inode_t dir_inode;
@@ -629,11 +635,11 @@ void do_rmdir(char *path)
 		  sizeof(inode_t));
 	if (dir_inode.size > 2 * sizeof(dentry_t)) {
 		printk("rmdir: failed to remove %s: Directory not empty\n",
-		       path_bak);
+		       path);
 		return;
 	}
 	if (dir_inode.inum == current_running->wd_inum) {
-		printk("rmdir: failed to remove %s: Danger action\n", path_bak);
+		printk("rmdir: failed to remove %s: Danger action\n", path);
 		return;
 	}
 	internel_rmfile(dir_inum, fa_dir_inum, name);
@@ -657,31 +663,44 @@ void free_inode_block(uint32_t inode_offset)
 	parse_inode_ptr(&pos, inode.size);
 	uint32_t block_offset[4];
 
+	for (int i = 0; i < 4; ++i) {
+		block_offset[i] = 0;
+	}
+
 	block_offset[0] = inode.data_ptr[pos.axis[0]];
-	read_disk(block_offset[0] + pos.axis[1] * sizeof(uint32_t),
-		  (char *)&block_offset[1], sizeof(uint32_t));
-	read_disk(block_offset[1] + pos.axis[2] * sizeof(uint32_t),
-		  (char *)&block_offset[2], sizeof(uint32_t));
-	read_disk(block_offset[2] + pos.axis[3] * sizeof(uint32_t),
-		  (char *)&block_offset[3], sizeof(uint32_t));
 
 	if (pos.axis[0] < 7) {
 		if (block_offset[0] == 0) {
 			return;
 		}
 		goto direct;
-	} else if (pos.axis[0] < 10) {
+	}
+
+	read_disk(block_offset[0] + pos.axis[1] * sizeof(uint32_t),
+		  (char *)&block_offset[1], sizeof(uint32_t));
+
+	if (pos.axis[0] < 10) {
 		if (block_offset[0] == 0 || block_offset[1] == 0) {
 			return;
 		}
 		goto first_level;
-	} else if (pos.axis[0] < 12) {
+	}
+
+	read_disk(block_offset[1] + pos.axis[2] * sizeof(uint32_t),
+		  (char *)&block_offset[2], sizeof(uint32_t));
+
+	if (pos.axis[0] < 12) {
 		if (block_offset[0] == 0 || block_offset[1] == 0 ||
 		    block_offset[2] == 0) {
 			return;
 		}
 		goto second_level;
-	} else {
+	}
+
+	read_disk(block_offset[2] + pos.axis[3] * sizeof(uint32_t),
+		  (char *)&block_offset[3], sizeof(uint32_t));
+
+	if (pos.axis[0] < 13) {
 		if (block_offset[0] == 0 || block_offset[1] == 0 ||
 		    block_offset[2] == 0 || block_offset[3] == 0) {
 			return;
@@ -788,17 +807,17 @@ void internel_rmfile(uint32_t inum, uint32_t fa_dir_inum, char *name)
 void do_touch(char *path)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t file_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &file_inum, FILE, &name);
 	if (file_inum != 0) {
-		printk("touch: %s File exists\n", path_bak);
+		printk("touch: %s File exists\n", path);
 		return;
 	}
 	if (fa_dir_inum == 0) {
-		printk("touch: Can not find %s\n", path_bak);
+		printk("touch: Can not find %s\n", path);
 		return;
 	}
 	internel_touch(fa_dir_inum, name);
@@ -820,13 +839,13 @@ void internel_touch(uint32_t fa_inum, char *name)
 void do_cat(char *path)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t file_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &file_inum, FILE, &name);
 	if (file_inum == 0 || fa_dir_inum == 0) {
-		printk("cat: Can not find %s\n", path_bak);
+		printk("cat: Can not find %s\n", path);
 		return;
 	}
 	internel_cat(file_inum);
@@ -851,28 +870,28 @@ void internel_cat(uint32_t inum)
 void do_ln(char *link_target, char *path)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t file_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &file_inum, FILE, &name);
 	if (file_inum != 0) {
-		printk("ln: %s File exists\n", path_bak);
+		printk("ln: %s File exists\n", path);
 		return;
 	}
 	if (fa_dir_inum == 0) {
-		printk("ln: Can not find %s\n", path_bak);
+		printk("ln: Can not find %s\n", path);
 		return;
 	}
 	char *target_name = NULL;
-	char link_target_bak[BUF_SIZE];
-	strcpy(link_target_bak, link_target);
+	char nlink_target[BUF_SIZE];
+	strcpy(nlink_target, link_target);
 	uint32_t target_file_inum, target_fa_dir_inum;
-	normalize_path(link_target);
-	parse_path(link_target, &target_fa_dir_inum, &target_file_inum, FILE,
+	normalize_path(nlink_target);
+	parse_path(nlink_target, &target_fa_dir_inum, &target_file_inum, FILE,
 		   &target_name);
 	if (target_fa_dir_inum == 0 || target_file_inum == 0) {
-		printk("ln: Can not find %s\n", link_target_bak);
+		printk("ln: Can not find %s\n", link_target);
 		return;
 	}
 	internel_ln(fa_dir_inum, target_file_inum, name);
@@ -892,13 +911,13 @@ void internel_ln(uint32_t dir_inum, uint32_t target_inum, char *name)
 void do_rm(char *path)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t file_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &file_inum, FILE, &name);
 	if (file_inum == 0 || fa_dir_inum == 0) {
-		printk("rm: Can not find %s\n", path_bak);
+		printk("rm: Can not find %s\n", path);
 		return;
 	}
 	internel_rmfile(file_inum, fa_dir_inum, name);
@@ -917,13 +936,13 @@ void init_fd()
 int do_fopen(char *path, uint32_t access)
 {
 	char *name = NULL;
-	char path_bak[BUF_SIZE];
-	strcpy(path_bak, path);
+	char npath[BUF_SIZE];
+	strcpy(npath, path);
 	uint32_t file_inum, fa_dir_inum;
-	normalize_path(path);
-	parse_path(path, &fa_dir_inum, &file_inum, FILE, &name);
+	normalize_path(npath);
+	parse_path(npath, &fa_dir_inum, &file_inum, FILE, &name);
 	if (file_inum == 0 || fa_dir_inum == 0) {
-		printk("fopen: Can not find %s\n", path_bak);
+		printk("fopen: Can not find %s\n", path);
 		return 0;
 	}
 	return internel_fopen(file_inum, access);
