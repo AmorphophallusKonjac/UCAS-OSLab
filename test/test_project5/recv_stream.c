@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-char buff[100000];
+char buff[700000];
 
 uint16_t fletcher16(uint8_t *data, int n)
 {
@@ -30,7 +30,7 @@ uint16_t fletcher16(uint8_t *data, int n)
 int main(void)
 {
 	int print_location = 5;
-	int nbytes = 91096 + 4;
+	int nbytes = 608880 + 4;
 	sys_net_recv_stream(buff, nbytes);
 	int size = *(int *)buff;
 	memcpy((uint8_t *)buff, (uint8_t *)buff + 4, size - 4);

@@ -176,15 +176,14 @@ int merge_stream_data()
 }
 
 int ACK_ptr = 0;
-uint64_t last_ACK_TIME = 0;
+int RSD_cnt = 0;
 
 int do_net_recv_stream(void *rxbuffer, int len)
 {
 	ACK_ptr = 0;
-	last_ACK_TIME = 0;
+	RSD_cnt = 0;
 	init_stream_data();
-	RSD_resend_time = get_timer() + RESEND_INTERVAL;
-	ACK_resend_time = get_timer() + RESEND_INTERVAL;
+	resend_time = get_us_timer() + RESEND_INTERVAL;
 	while (merge_stream_data() < len) {
 		e1000_poll_stream(tmp_buffer);
 		char magic = tmp_buffer[PROTOCOL_START];
@@ -238,23 +237,21 @@ void do_ACK()
 	int idx = stream_data_head->next;
 	if (stream_data[idx].valid == 1 && stream_data[idx].seq == 0 &&
 	    stream_data[idx].len > ACK_ptr) {
-		last_ACK_TIME = get_timer();
+		RSD_cnt = 0;
 		seq = stream_data[idx].len;
 		ACK_ptr = seq;
-		printl("send ACK seq=%d\n", seq);
-		tx_buff[PROTOCOL_START + 4] = seq >> 24;
-		tx_buff[PROTOCOL_START + 5] = (seq & 0x00ff0000) >> 16;
-		tx_buff[PROTOCOL_START + 6] = (seq & 0x0000ff00) >> 8;
-		tx_buff[PROTOCOL_START + 7] = seq & 0x000000ff;
-		e1000_transmit(tx_buff, 62);
-	} else if (last_ACK_TIME != 0 &&
-		   get_timer() > last_ACK_TIME + 4 * RESEND_INTERVAL) {
-		seq = ACK_ptr;
-		printl("send ACK seq=%d\n", seq);
-		tx_buff[PROTOCOL_START + 4] = seq >> 24;
-		tx_buff[PROTOCOL_START + 5] = (seq & 0x00ff0000) >> 16;
-		tx_buff[PROTOCOL_START + 6] = (seq & 0x0000ff00) >> 8;
-		tx_buff[PROTOCOL_START + 7] = seq & 0x000000ff;
-		e1000_transmit(tx_buff, 62);
+	}
+	seq = ACK_ptr;
+	printl("send ACK seq=%d\n", seq);
+	tx_buff[PROTOCOL_START + 4] = seq >> 24;
+	tx_buff[PROTOCOL_START + 5] = (seq & 0x00ff0000) >> 16;
+	tx_buff[PROTOCOL_START + 6] = (seq & 0x0000ff00) >> 8;
+	tx_buff[PROTOCOL_START + 7] = seq & 0x000000ff;
+	e1000_transmit(tx_buff, 62);
+	if (RSD_cnt >= 1) {
+		do_RSD();
+		RSD_cnt = 0;
+	} else {
+		++RSD_cnt;
 	}
 }
