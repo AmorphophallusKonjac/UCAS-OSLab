@@ -441,7 +441,7 @@ int e1000_transmit(void *txpacket, int length);
 int e1000_poll(void *rxbuffer);
 int e1000_poll_stream(void *rxbuffer);
 
-#define RESEND_INTERVAL 1
+#define RESEND_INTERVAL 10
 
 uint64_t resend_time;
 

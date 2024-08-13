@@ -25,6 +25,8 @@ void sys_show_cursor(void);
 int sys_taskset(pid_t pid, int mask);
 int sys_fork(void);
 int sys_net_recv_stream(void *rxbuffer, int len);
+int sys_net_send_protocol(void *rxbuffer, int len);
+int sys_net_recv_protocol(void *rxbuffer);
 
 /************************************************************/
 /* TODO: [P3 task1] ps, getchar */

@@ -220,6 +220,8 @@ static void init_syscall(void)
 	syscall[SYSCALL_TASKSET] = (long (*)())do_taskset;
 	syscall[SYSCALL_FORK] = (long (*)())do_fork;
 	syscall[SYSCALL_NET_RECV_STREAM] = (long (*)())do_net_recv_stream;
+	syscall[SYSCALL_NET_SEND_PROTOCOL] = (long (*)())do_net_send_protocol;
+	syscall[SYSCALL_NET_RECV_PROTOCOL] = (long (*)())do_net_recv_protocol;
 }
 /************************************************************/
 

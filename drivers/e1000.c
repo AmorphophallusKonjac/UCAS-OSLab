@@ -248,10 +248,7 @@ int e1000_poll_stream(void *rxbuffer)
 	tail = (tail + 1) % RXDESCS;
 
 	while ((rx_desc_array[tail].status & E1000_RXD_STAT_DD) == 0) {
-		if (get_us_timer() >= resend_time) {
-			do_ACK();
-			resend_time = get_us_timer() + RESEND_INTERVAL;
-		}
+		// do_ACK_with_intervals();
 		local_flush_dcache();
 	}
 

@@ -183,8 +183,9 @@ int do_net_recv_stream(void *rxbuffer, int len)
 	ACK_ptr = 0;
 	RSD_cnt = 0;
 	init_stream_data();
-	resend_time = get_us_timer() + RESEND_INTERVAL;
+	resend_time = 0;
 	while (merge_stream_data() < len) {
+		do_ACK_with_intervals();
 		e1000_poll_stream(tmp_buffer);
 		char magic = tmp_buffer[PROTOCOL_START];
 		char mode = tmp_buffer[PROTOCOL_START + 1];
@@ -205,6 +206,7 @@ int do_net_recv_stream(void *rxbuffer, int len)
 			memcpy((uint8_t *)(rxbuffer + seq),
 			       (uint8_t *)(tmp_buffer + PROTOCOL_START + 8),
 			       len);
+			// printl("receive seq=%d, len=%d\n", seq, len);
 			insert_stream_data(seq, len);
 		}
 	}
@@ -221,7 +223,7 @@ void do_RSD()
 	if (stream_data[idx].valid == 1 && stream_data[idx].seq == 0) {
 		seq = stream_data[idx].len;
 	}
-	printl("send RSD seq=%d\n", seq);
+	// printl("send RSD seq=%d\n", seq);
 	tx_buff[PROTOCOL_START + 4] = seq >> 24;
 	tx_buff[PROTOCOL_START + 5] = (seq & 0x00ff0000) >> 16;
 	tx_buff[PROTOCOL_START + 6] = (seq & 0x0000ff00) >> 8;
@@ -242,16 +244,151 @@ void do_ACK()
 		ACK_ptr = seq;
 	}
 	seq = ACK_ptr;
-	printl("send ACK seq=%d\n", seq);
+	// printl("send ACK seq=%d\n", seq);
 	tx_buff[PROTOCOL_START + 4] = seq >> 24;
 	tx_buff[PROTOCOL_START + 5] = (seq & 0x00ff0000) >> 16;
 	tx_buff[PROTOCOL_START + 6] = (seq & 0x0000ff00) >> 8;
 	tx_buff[PROTOCOL_START + 7] = seq & 0x000000ff;
 	e1000_transmit(tx_buff, 62);
-	if (RSD_cnt >= 1) {
+	if (RSD_cnt >= 299) {
 		do_RSD();
 		RSD_cnt = 0;
 	} else {
 		++RSD_cnt;
 	}
+}
+
+void do_ACK_with_intervals() {
+	if (get_ns_timer() >= resend_time) {
+		do_ACK();
+		resend_time = get_ns_timer() + RESEND_INTERVAL;
+	}
+}
+
+int do_net_send_protocol(void *rxbuffer, int len) {
+	uint32_t seq = 0;
+	uint8_t fixed_smac[ETH_ALEN] = { 0x80, 0xfa, 0x5b, 0x33, 0x56, 0xef };
+    uint8_t fixed_dmac[ETH_ALEN] = { 0x00, 0x0a, 0x35, 0x00, 0x1e, 0x53 }; 
+	int ret = 0, pl_len = 0;
+	int last_pkt = 0;
+	char *pkt = tmp_buffer;
+	for (int i = 0; i < len; i = i + 992) {
+		memset(pkt, 0, 2048);
+
+		int hdr_len = ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE;
+
+		if (i + 992 < len) {
+			pl_len = 1000;
+			last_pkt = 0;
+		} else {
+			pl_len = 8 + len - i;
+			last_pkt = 1;
+		}
+
+		int pkt_len = hdr_len + pl_len;
+
+		// Assembly ether header
+		struct ethhdr *eth_hdr = packet_to_ether_hdr(pkt);
+
+		memcpy(eth_hdr->ether_dhost, fixed_dmac, ETH_ALEN);
+    	memcpy(eth_hdr->ether_shost, fixed_smac, ETH_ALEN);
+    	eth_hdr->ether_type = htons(ETH_P_IP);
+
+		// Assembly ip header
+    	struct iphdr *ip_hdr = packet_to_ip_hdr(pkt);
+
+    	ip_hdr->ihl = 5;
+    	ip_hdr->version = 4;
+    	ip_hdr->tos = 0;
+    	ip_hdr->tot_len = htons(IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE + pl_len);
+    	ip_hdr->id = htons(54321);
+    	ip_hdr->frag_off = htons(IP_DF);
+    	ip_hdr->ttl = DEFAULT_TTL;
+    	ip_hdr->protocol = IPPROTO_TCP;
+    	ip_hdr->saddr = htonl(10 << 24 |   0 << 16 |   0 << 8 |  67);
+    	ip_hdr->daddr = htonl(255 << 24 | 255 << 16 | 255 << 8 | 255);
+
+		// Assembly tcp header and payload
+    	struct tcphdr *tcp_hdr = packet_to_tcp_hdr(pkt);
+
+    	tcp_hdr->sport = htons(46930);
+    	tcp_hdr->dport = htons(50001);
+    	tcp_hdr->seq = htonl(seq++);
+    	tcp_hdr->ack = htonl(0);
+    	tcp_hdr->off = TCP_HDR_OFFSET;
+    	tcp_hdr->flags = TCP_PSH | TCP_ACK;
+    	tcp_hdr->rwnd = htons(TCP_DEFAULT_WINDOW);
+
+		protocol_head_t *head = (protocol_head_t *)(pkt + hdr_len);
+		head->magic = 0x45;
+		head->flag = 0;
+		if (last_pkt) {
+			head->flag = EOF;
+		} else {
+			head->flag = 0;
+		}
+		head->len = htons((uint16_t)pl_len - 8);
+		head->seq = htonl(i);
+		memcpy((uint8_t *)pkt + PROTOCOL_START + 8, (uint8_t *)rxbuffer + i, pl_len - 8);
+
+		tcp_hdr->checksum = tcp_checksum(ip_hdr, tcp_hdr);
+    	ip_hdr->checksum = ip_checksum(ip_hdr);
+
+		e1000_transmit(pkt, pkt_len);
+	}
+	return ret;
+}
+
+int do_net_recv_protocol(void *rxbuffer) {
+	ACK_ptr = 0;
+	RSD_cnt = 0;
+	init_stream_data();
+	resend_time = 0;
+	while (true) {
+		// do_ACK_with_intervals();
+		e1000_poll_stream(tmp_buffer);
+		char magic = tmp_buffer[PROTOCOL_START];
+		char mode = tmp_buffer[PROTOCOL_START + 1];
+		if (magic == 0x45) {
+			short len0 = tmp_buffer[PROTOCOL_START + 2];
+			short len1 = tmp_buffer[PROTOCOL_START + 3];
+			short len = (len0 << 8) | len1;
+
+			int seq0 = tmp_buffer[PROTOCOL_START + 4];
+			int seq1 = tmp_buffer[PROTOCOL_START + 5];
+			int seq2 = tmp_buffer[PROTOCOL_START + 6];
+			int seq3 = tmp_buffer[PROTOCOL_START + 7];
+			int seq = (seq0 << 24) | (seq1 << 16) | (seq2 << 8) |
+				  seq3;
+
+			memcpy((uint8_t *)(rxbuffer + seq),
+			       (uint8_t *)(tmp_buffer + PROTOCOL_START + 8),
+			       len);
+			insert_stream_data(seq, len);
+		}
+		if (mode == EOF)
+			break;
+	}
+	return stream_data[stream_data_head->next].len;
+}
+
+uint16_t ntohs(uint16_t x) {
+	uint16_t ret = 0;
+	uint8_t *ptr = (uint8_t *)&x;
+	ret = (uint16_t)(*ptr) << 8 | (uint16_t)(*(ptr + 1));
+	return ret;
+}
+
+uint16_t htons(uint16_t x) {
+	return ntohs(x);
+}
+
+uint32_t htonl(uint32_t x) {
+    uint32_t ret = 0;
+    uint8_t *ptr = (uint8_t *)&x;
+    ret =   (uint32_t)(*ptr) << 24 |
+            (uint32_t)(*(ptr + 1)) << 16 |
+            (uint32_t)(*(ptr + 2)) << 8 |
+            (uint32_t)(*(ptr + 3));
+    return ret;
 }

@@ -1,0 +1,33 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <string.h>
+
+char buff[700000];
+
+uint16_t fletcher16(uint8_t *data, int n)
+{
+	uint16_t sum1 = 0;
+	uint16_t sum2 = 0;
+
+	for (int i = 0; i < n; i++) {
+		sum1 = (sum1 + data[i]) % 0xff;
+		sum2 = (sum2 + sum1) % 0xff;
+	}
+	return (sum2 << 8) | sum1;
+}
+
+int main(void)
+{
+	int print_location = 5;
+    sys_move_cursor(0, print_location);
+	int len = 0;
+	len = sys_net_recv_protocol(buff);
+	printf("%d\n", len);
+	for (int i = 0; i < len; ++i) {
+        printf("%02x ", buff[i]);
+        if (i % 16 == 0 && i != 0)
+            printf("\n");
+    }
+	return 0;
+}

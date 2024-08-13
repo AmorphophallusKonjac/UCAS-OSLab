@@ -12,6 +12,10 @@ uint64_t get_ticks()
 	return time_elapsed;
 }
 
+uint64_t get_ns_timer() {
+	return get_ticks() * 1000000000 / time_base;
+}
+
 uint64_t get_us_timer() 
 {
 	return get_ticks() * 1000000 / time_base;
