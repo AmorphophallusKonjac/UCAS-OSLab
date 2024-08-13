@@ -313,7 +313,7 @@ int do_net_send_protocol(void *rxbuffer, int len) {
 
     	tcp_hdr->sport = htons(46930);
     	tcp_hdr->dport = htons(50001);
-    	tcp_hdr->seq = htonl(seq++);
+    	tcp_hdr->seq = htonl(seq);
     	tcp_hdr->ack = htonl(0);
     	tcp_hdr->off = TCP_HDR_OFFSET;
     	tcp_hdr->flags = TCP_PSH | TCP_ACK;
@@ -335,6 +335,7 @@ int do_net_send_protocol(void *rxbuffer, int len) {
     	ip_hdr->checksum = ip_checksum(ip_hdr);
 
 		e1000_transmit(pkt, pkt_len);
+		seq += pl_len;
 	}
 	return ret;
 }
@@ -365,6 +366,7 @@ int do_net_recv_protocol(void *rxbuffer) {
 			       (uint8_t *)(tmp_buffer + PROTOCOL_START + 8),
 			       len);
 			insert_stream_data(seq, len);
+			merge_stream_data();
 		}
 		if (mode == EOF)
 			break;

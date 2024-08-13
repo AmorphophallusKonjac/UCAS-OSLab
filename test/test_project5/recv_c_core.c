@@ -24,10 +24,6 @@ int main(void)
 	int len = 0;
 	len = sys_net_recv_protocol(buff);
 	printf("%d\n", len);
-	for (int i = 0; i < len; ++i) {
-        printf("%02x ", buff[i]);
-        if (i % 16 == 0 && i != 0)
-            printf("\n");
-    }
+	printf("%d\n", fletcher16((uint8_t *)buff, len));
 	return 0;
 }
