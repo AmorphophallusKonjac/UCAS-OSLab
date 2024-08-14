@@ -268,7 +268,7 @@ void do_ACK_with_intervals() {
 int do_net_send_protocol(void *rxbuffer, int len) {
 	uint32_t seq = 0;
 	uint8_t fixed_smac[ETH_ALEN] = { 0x80, 0xfa, 0x5b, 0x33, 0x56, 0xef };
-    uint8_t fixed_dmac[ETH_ALEN] = { 0x00, 0x0a, 0x35, 0x00, 0x1e, 0x53 }; 
+    uint8_t fixed_dmac[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }; 
 	int ret = 0, pl_len = 0;
 	int last_pkt = 0;
 	char *pkt = tmp_buffer;

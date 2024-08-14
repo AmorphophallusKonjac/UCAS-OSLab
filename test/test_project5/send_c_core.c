@@ -38045,8 +38045,9 @@ int main(void)
 	printf("%d\n%d\n", 608290, fletcher16((uint8_t *)buffer, 608290));
 	printf("> [SEND] start send package.               \n");
 
+    printf("timer: %d\n", sys_get_tick() / sys_get_timebase());
 	sys_net_send_protocol(buffer, 608290);
-	sys_move_cursor(0, print_location + 5);
+    printf("timer: %d\n", sys_get_tick() / sys_get_timebase());
 	printf("> [SEND] totally send package %d/%d !         \n",
 		       1, 4);
 

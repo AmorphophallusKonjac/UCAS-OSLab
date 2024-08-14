@@ -81,7 +81,7 @@ void unmapPageDir(int pid)
 {
 	for (int i = 0; i < PAGE_NUMS; ++i) {
 		spin_lock_acquire(&pgcb[i].lock);
-		if (pgcb[i].cnt > 1) {
+		if (pgcb[i].cnt > 1 && pgcb[i].pid == pid) {
 			--pgcb[i].cnt;
 			spin_lock_release(&pgcb[i].lock);
 			continue;

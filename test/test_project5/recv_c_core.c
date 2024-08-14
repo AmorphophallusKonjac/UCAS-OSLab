@@ -22,7 +22,9 @@ int main(void)
 	int print_location = 5;
     sys_move_cursor(0, print_location);
 	int len = 0;
+	printf("timer: %d\n", sys_get_tick() / sys_get_timebase());
 	len = sys_net_recv_protocol(buff);
+	printf("timer: %d\n", sys_get_tick() / sys_get_timebase());
 	printf("%d\n", len);
 	printf("%d\n", fletcher16((uint8_t *)buff, len));
 	return 0;
