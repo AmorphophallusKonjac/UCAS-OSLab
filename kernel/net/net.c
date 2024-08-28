@@ -272,16 +272,16 @@ int do_net_send_protocol(void *rxbuffer, int len) {
 	int ret = 0, pl_len = 0;
 	int last_pkt = 0;
 	char *pkt = tmp_buffer;
-	for (int i = 0; i < len; i = i + 992) {
+	for (int i = 0; i < len; i = i + PROTOCOL_DATA_LEN) {
 		memset(pkt, 0, 2048);
 
 		int hdr_len = ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE;
 
-		if (i + 992 < len) {
-			pl_len = 1000;
+		if (i + PROTOCOL_DATA_LEN < len) {
+			pl_len = PROTOCOL_DATA_LEN + PROTOCOL_HEAD_LEN;
 			last_pkt = 0;
 		} else {
-			pl_len = 8 + len - i;
+			pl_len = PROTOCOL_HEAD_LEN + len - i;
 			last_pkt = 1;
 		}
 
@@ -327,9 +327,10 @@ int do_net_send_protocol(void *rxbuffer, int len) {
 		} else {
 			head->flag = 0;
 		}
-		head->len = htons((uint16_t)pl_len - 8);
+		head->len = htons((uint16_t)pl_len - PROTOCOL_HEAD_LEN);
 		head->seq = htonl(i);
-		memcpy((uint8_t *)pkt + PROTOCOL_START + 8, (uint8_t *)rxbuffer + i, pl_len - 8);
+		// printl("send seq=%d, len=%d\n", i, pl_len - PROTOCOL_HEAD_LEN);
+		memcpy((uint8_t *)pkt + PROTOCOL_START + PROTOCOL_HEAD_LEN, (uint8_t *)rxbuffer + i, pl_len - PROTOCOL_HEAD_LEN);
 
 		tcp_hdr->checksum = tcp_checksum(ip_hdr, tcp_hdr);
     	ip_hdr->checksum = ip_checksum(ip_hdr);
@@ -341,6 +342,9 @@ int do_net_send_protocol(void *rxbuffer, int len) {
 }
 
 int do_net_recv_protocol(void *rxbuffer) {
+	int len = 0;
+	int start_flag = 0;
+	uint64_t start_time = 0, finish_time = 0;
 	ACK_ptr = 0;
 	RSD_cnt = 0;
 	init_stream_data();
@@ -351,6 +355,10 @@ int do_net_recv_protocol(void *rxbuffer) {
 		char magic = tmp_buffer[PROTOCOL_START];
 		char mode = tmp_buffer[PROTOCOL_START + 1];
 		if (magic == 0x45) {
+			if (len == 0 && start_flag == 0) {
+				printk("start: %ld\n", start_time = get_us_timer());
+				start_flag = 1;
+			}
 			short len0 = tmp_buffer[PROTOCOL_START + 2];
 			short len1 = tmp_buffer[PROTOCOL_START + 3];
 			short len = (len0 << 8) | len1;
@@ -363,14 +371,18 @@ int do_net_recv_protocol(void *rxbuffer) {
 				  seq3;
 
 			memcpy((uint8_t *)(rxbuffer + seq),
-			       (uint8_t *)(tmp_buffer + PROTOCOL_START + 8),
+			       (uint8_t *)(tmp_buffer + PROTOCOL_START + PROTOCOL_HEAD_LEN),
 			       len);
+			// printl("recv seq=%d, len=%d\n", seq, len);
 			insert_stream_data(seq, len);
 			merge_stream_data();
+			len = stream_data[stream_data_head->next].len;
 		}
 		if (mode == EOF)
 			break;
 	}
+	printk("finish: %ld\n", finish_time = get_us_timer());
+	printk("use: %ldus\n", finish_time - start_time);
 	return stream_data[stream_data_head->next].len;
 }
 

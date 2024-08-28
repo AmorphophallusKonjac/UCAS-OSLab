@@ -169,6 +169,15 @@ typedef struct protocol_head {
 	uint32_t seq;
 } protocol_head_t;
 
+// TCP_PAYLOAD can not be bigger than TCP_MSS
+#define TCP_MSS 1460
+
+#define TCP_PAYLOAD TCP_MSS
+
+#define PROTOCOL_HEAD_LEN sizeof(protocol_head_t)
+
+#define PROTOCOL_DATA_LEN TCP_PAYLOAD-PROTOCOL_HEAD_LEN
+
 // stream[0] is head and is always invalid
 stream_list_node_t stream_data[STREAM_DATA_SIZE];
 

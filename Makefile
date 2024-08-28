@@ -154,9 +154,6 @@ dirs:
 format:
 	find . -regex '.*\.\(cpp\|hpp\|cu\|c\|h\)' -exec clang-format-11 -style=file -i {} \;
 
-tail:
-	tail -f ~/OSLab-RISC-V/oslab-log.txt
-
 clean:
 	rm -rf $(DIR_BUILD)
 
@@ -206,6 +203,10 @@ debug-net2:
 viewlog:
 	@if [ ! -e $(QEMU_LOG_FILE) ]; then touch $(QEMU_LOG_FILE); fi;
 	@tail -f $(QEMU_LOG_FILE)
+
+viewlog2:
+	@if [ ! -e $(QEMU_LOG_FILE2) ]; then touch $(QEMU_LOG_FILE2); fi;
+	@tail -f $(QEMU_LOG_FILE2)
 
 minicom:
 	sudo $(MINICOM) -D $(TTYUSB1) -X ~/OSLab-RISC-V/oslab-log.txt
